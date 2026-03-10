@@ -2,309 +2,53 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes">
-    <title>Taximoto - Solicitar Viaje</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TAXIMOTO - Solicitar viaje</title>
     <link rel="stylesheet" href="css/styles.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="supabase/config.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/requests.js"></script>
+    <script src="js/app.js"></script>
 </head>
 <body>
-    <div id="loading-screen" class="loading-screen">
-        <div class="loader"></div>
-        <p>Cargando Taximoto...</p>
+    <div class="app-header">
+        <h1>🚖 TAXIMOTO</h1>
+        <p>Solicitar viaje</p>
+        <button onclick="logout()" class="btn btn-secondary" style="width: auto; padding: 8px 16px;">Cerrar sesión</button>
     </div>
-
-    <div id="app" class="app-container" style="display: none;">
-        <header class="main-header">
-            <div class="logo-container">
-                <h1 class="logo">🚖 Taximoto</h1>
-                <p class="slogan">Solicita tu viaje</p>
-            </div>
-        </header>
-
-        <nav class="main-nav">
-            <ul class="nav-list">
-                <li class="nav-item"><a href="index.html">Inicio</a></li>
-                <li class="nav-item"><a href="login.html" id="login-link">Iniciar Sesión</a></li>
-                <li class="nav-item"><a href="register.html">Registrarse</a></li>
-                <li class="nav-item"><a href="#" id="logout-btn" style="display:none;">Cerrar Sesión</a></li>
-            </ul>
-        </nav>
-
-        <main class="main-content">
-            <div id="not-logged-warning" class="error-message" style="display: none;">
-                ⚠️ Debes <a href="login.html" style="color:white;">iniciar sesión</a> para solicitar un viaje
-            </div>
-            
-            <div id="request-container" style="display: none;">
-                <div class="form-container">
-                    <h2 style="color:#ff6b00;">🚀 Solicitar transporte</h2>
-                    
-                    <div id="error-message" class="error-message"></div>
-                    <div id="success-message" class="success-message"></div>
-                    
-                    <label style="color:#ff6b00;">¿Qué necesitas?</label>
-                    <div class="vehicle-selector" id="vehicle-selector">
-                        <div class="vehicle-option selected" data-type="motorizado">
-                            <div class="icon">🏍️</div>
-                            <div class="title">Motorizado</div>
-                        </div>
-                        <div class="vehicle-option" data-type="taxi">
-                            <div class="icon">🚖</div>
-                            <div class="title">Taxi</div>
-                        </div>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label>📍 ¿Dónde estás?</label>
-                        <input type="text" id="origen" placeholder="Ej: Calle 5, Sector Centro" required>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label>🎯 ¿A dónde vas?</label>
-                        <input type="text" id="destino" placeholder="Ej: Plaza Bolívar" required>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label>📝 Notas (opcional)</label>
-                        <textarea id="notas" rows="2" placeholder="Ej: Tocar timbre, edificio azul..."></textarea>
-                    </div>
-                    
-                    <button id="solicitar-btn" class="btn btn-primary" style="width:100%;">🔍 Buscar conductor</button>
+    
+    <div class="container">
+        <div class="card">
+            <form onsubmit="solicitarViaje(event)" id="solicitar-form">
+                <div class="form-group">
+                    <label>Tipo de vehículo</label>
+                    <select id="tipo" required>
+                        <option value="taxi">🚕 Taxi</option>
+                        <option value="mototaxi">🛵 Mototaxi</option>
+                    </select>
                 </div>
                 
-                <div id="conductores-disponibles" style="margin-top:20px;">
-                    <h3 style="color:#ff6b00;">🟢 Conductores disponibles</h3>
-                    <div id="lista-conductores" class="conductores-lista">
-                        <p>Cargando conductores...</p>
-                    </div>
+                <div class="form-group">
+                    <label>¿Dónde estás?</label>
+                    <input type="text" id="origen" required placeholder="Dirección de recogida">
                 </div>
                 
-                <div id="buscando" style="display:none; text-align:center; padding:30px;">
-                    <div class="loader"></div>
-                    <h3>Buscando conductor disponible...</h3>
-                    <button id="cancelar-btn" class="btn btn-outline">Cancelar</button>
+                <div class="form-group">
+                    <label>¿A dónde vas?</label>
+                    <input type="text" id="destino" required placeholder="Dirección de destino">
                 </div>
                 
-                <div id="viaje-aceptado" style="display:none;" class="viaje-aceptado">
-                    <span style="font-size:3rem;">✅</span>
-                    <h3>¡Conductor asignado!</h3>
-                    <div id="conductor-asignado" class="conductor-info-detalle"></div>
-                    <div style="display:flex; gap:10px; margin-top:15px;">
-                        <button id="llamar-btn" class="btn btn-primary" style="flex:1;">📞 Llamar</button>
-                        <button id="whatsapp-btn" class="btn btn-secondary" style="flex:1;">💬 WhatsApp</button>
-                    </div>
-                    <button id="nuevo-viaje-btn" class="btn btn-outline" style="margin-top:15px; width:100%;">Nuevo viaje</button>
-                </div>
-            </div>
-            
-            <section class="legal-notice">
-                <h4>⚠️ Aviso Legal</h4>
-                <p>Taximoto solo conecta usuarios con conductores. No nos responsabilizamos por accidentes, robos o daños.</p>
-            </section>
-        </main>
-
-        <footer class="main-footer">
-            <p>&copy; 2026 Taximoto</p>
-        </footer>
+                <button type="submit" class="btn btn-primary btn-large">Solicitar viaje</button>
+            </form>
+        </div>
+        
+        <div id="estado-viaje"></div>
+        <div id="calificacion-container"></div>
+        
+        <div class="legal-notice">
+            TAXIMOTO solo conecta conductores con usuarios. No se hace responsable por pagos, accidentes, daños o conflictos.
+        </div>
     </div>
-
-    <script type="module">
-        import { supabase } from './supabase/config.js'
-        import { getSesionActual, cerrarSesion } from './js/auth.js'
-        
-        // Elementos DOM
-        const requestContainer = document.getElementById('request-container')
-        const notLoggedWarning = document.getElementById('not-logged-warning')
-        const loginLink = document.getElementById('login-link')
-        const logoutBtn = document.getElementById('logout-btn')
-        const vehicleOptions = document.querySelectorAll('.vehicle-option')
-        const solicitarBtn = document.getElementById('solicitar-btn')
-        const cancelarBtn = document.getElementById('cancelar-btn')
-        const nuevoViajeBtn = document.getElementById('nuevo-viaje-btn')
-        const buscarDiv = document.getElementById('buscando')
-        const viajeAceptadoDiv = document.getElementById('viaje-aceptado')
-        const listaConductores = document.getElementById('lista-conductores')
-        const errorMsg = document.getElementById('error-message')
-        const successMsg = document.getElementById('success-message')
-        
-        let selectedVehicle = 'motorizado'
-        let sesionActual = null
-        let viajeActivo = null
-        let intervalConductores = null
-        
-        async function verificarSesion() {
-            sesionActual = await getSesionActual()
-            
-            if (sesionActual) {
-                requestContainer.style.display = 'block'
-                notLoggedWarning.style.display = 'none'
-                loginLink.style.display = 'none'
-                logoutBtn.style.display = 'block'
-                cargarConductores()
-                intervalConductores = setInterval(cargarConductores, 10000)
-            } else {
-                requestContainer.style.display = 'none'
-                notLoggedWarning.style.display = 'block'
-                loginLink.style.display = 'block'
-                logoutBtn.style.display = 'none'
-            }
-        }
-        
-        async function cargarConductores() {
-            try {
-                const { data: conductores, error } = await supabase
-                    .from('profiles')
-                    .select('*')
-                    .eq('role', 'driver')
-                    .eq('status', 'active')
-                    .eq('driver_type', selectedVehicle)
-                
-                if (error) throw error
-                
-                if (!conductores || conductores.length === 0) {
-                    listaConductores.innerHTML = '<p style="color:#888;">No hay conductores disponibles</p>'
-                    return
-                }
-                
-                listaConductores.innerHTML = conductores.map(cond => `
-                    <div class="conductor-item">
-                        <div class="conductor-foto">${cond.full_name?.charAt(0) || '👤'}</div>
-                        <div class="conductor-info">
-                            <div class="conductor-nombre">${cond.full_name || 'Conductor'}</div>
-                            <div class="conductor-detalle">${cond.vehicle_brand || ''} ${cond.vehicle_model || ''}</div>
-                            <div class="conductor-detalle">Placa: ${cond.license_plate || 'N/A'}</div>
-                            <span class="conductor-estado">🟢 Disponible</span>
-                        </div>
-                    </div>
-                `).join('')
-                
-            } catch (error) {
-                console.error('Error cargando conductores:', error)
-            }
-        }
-        
-        vehicleOptions.forEach(opt => {
-            opt.addEventListener('click', function() {
-                vehicleOptions.forEach(o => o.classList.remove('selected'))
-                this.classList.add('selected')
-                selectedVehicle = this.dataset.type
-                cargarConductores()
-            })
-        })
-        
-        solicitarBtn.addEventListener('click', async function() {
-            const origen = document.getElementById('origen').value.trim()
-            const destino = document.getElementById('destino').value.trim()
-            
-            if (!origen || !destino) {
-                errorMsg.textContent = 'Completa origen y destino'
-                errorMsg.classList.add('show')
-                return
-            }
-            
-            errorMsg.classList.remove('show')
-            
-            // Crear solicitud en Supabase
-            try {
-                const { data, error } = await supabase
-                    .from('requests')
-                    .insert([{
-                        client_id: sesionActual.user.id,
-                        vehicle_type: selectedVehicle,
-                        origin_address: origen,
-                        destination_address: destino,
-                        notes: document.getElementById('notas').value,
-                        status: 'searching'
-                    }])
-                    .select()
-                    .single()
-                
-                if (error) throw error
-                
-                // Ocultar formulario, mostrar búsqueda
-                document.querySelector('.form-container').style.display = 'none'
-                document.getElementById('conductores-disponibles').style.display = 'none'
-                buscarDiv.style.display = 'block'
-                
-                // Simular asignación (en producción sería con tiempo real)
-                setTimeout(async () => {
-                    // Buscar un conductor aleatorio para simular
-                    const { data: conductores } = await supabase
-                        .from('profiles')
-                        .select('*')
-                        .eq('role', 'driver')
-                        .eq('status', 'active')
-                        .eq('driver_type', selectedVehicle)
-                    
-                    if (conductores && conductores.length > 0) {
-                        const conductor = conductores[0]
-                        
-                        // Actualizar la solicitud con el conductor
-                        await supabase
-                            .from('requests')
-                            .update({ 
-                                driver_id: conductor.id, 
-                                status: 'assigned' 
-                            })
-                            .eq('id', data.id)
-                        
-                        buscarDiv.style.display = 'none'
-                        viajeAceptadoDiv.style.display = 'block'
-                        
-                        document.getElementById('conductor-asignado').innerHTML = `
-                            <p><strong>Conductor:</strong> ${conductor.full_name}</p>
-                            <p><strong>Vehículo:</strong> ${conductor.vehicle_brand || ''} ${conductor.vehicle_model || ''} ${conductor.vehicle_year || ''} - ${conductor.vehicle_color || ''}</p>
-                            <p><strong>Placa:</strong> ${conductor.license_plate || 'N/A'}</p>
-                            <p><strong>Teléfono:</strong> ${conductor.phone || 'N/A'}</p>
-                        `
-                        
-                        viajeActivo = {
-                            conductor: conductor.full_name,
-                            telefono: conductor.phone
-                        }
-                    }
-                }, 5000)
-                
-            } catch (error) {
-                errorMsg.textContent = 'Error al solicitar: ' + error.message
-                errorMsg.classList.add('show')
-            }
-        })
-        
-        cancelarBtn.addEventListener('click', function() {
-            buscarDiv.style.display = 'none'
-            document.querySelector('.form-container').style.display = 'block'
-            document.getElementById('conductores-disponibles').style.display = 'block'
-        })
-        
-        nuevoViajeBtn.addEventListener('click', function() {
-            viajeAceptadoDiv.style.display = 'none'
-            document.querySelector('.form-container').style.display = 'block'
-            document.getElementById('conductores-disponibles').style.display = 'block'
-            document.getElementById('origen').value = ''
-            document.getElementById('destino').value = ''
-            document.getElementById('notas').value = ''
-            viajeActivo = null
-        })
-        
-        document.getElementById('llamar-btn').addEventListener('click', function() {
-            if (viajeActivo?.telefono) {
-                window.location.href = `tel:${viajeActivo.telefono}`
-            }
-        })
-        
-        document.getElementById('whatsapp-btn').addEventListener('click', function() {
-            if (viajeActivo?.telefono) {
-                const mensaje = 'Hola, soy el pasajero de Taximoto. ¿Ya vienes?'
-                window.open(`https://wa.me/${viajeActivo.telefono}?text=${encodeURIComponent(mensaje)}`, '_blank')
-            }
-        })
-        
-        logoutBtn.addEventListener('click', async function(e) {
-            e.preventDefault()
-            await cerrarSesion()
-        })
-        
-        verificarSesion()
-    </script>
 </body>
 </html>

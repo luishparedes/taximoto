@@ -1,17 +1,28 @@
-# .gitignore
-# Archivos que NO deben subirse a GitHub
-
-# Archivo de variables de entorno (claves secretas)
-.env
-
-# Dependencias de node (si las usamos después)
+# Dependencias
 node_modules/
+package-lock.json
 
-# Archivos temporales
-*.log
+# Archivos de entorno
+.env
+.env.local
+.env.production
+
+# Archivos de sistema
 .DS_Store
 Thumbs.db
 
-# Archivos de configuración locales
+# IDE
 .vscode/
 .idea/
+
+# Logs
+*.log
+npm-debug.log*
+
+# Archivos de build
+dist/
+build/
+
+# Archivos temporales
+*.tmp
+*.temp

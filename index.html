@@ -3,72 +3,44 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes">
-    <title>Taximoto - Transporte Comunitario</title>
+    <title>TAXIMOTO - Conecta conductores con la comunidad</title>
     <link rel="stylesheet" href="css/styles.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="supabase/config.js"></script>
 </head>
 <body>
-    <div id="loading-screen" class="loading-screen">
-        <div class="loader"></div>
-        <p>Cargando Taximoto...</p>
+    <div class="app-header">
+        <h1>🚖 TAXIMOTO</h1>
+        <p>Conecta conductores con la comunidad</p>
     </div>
-
-    <div id="app" class="app-container" style="display: none;">
-        <header class="main-header">
-            <div class="logo-container">
-                <h1 class="logo">🚖 Taximoto</h1>
-                <p class="slogan">Transporte comunitario seguro</p>
-            </div>
-        </header>
-
-        <nav class="main-nav">
-            <ul class="nav-list">
-                <li class="nav-item active"><a href="index.html">Inicio</a></li>
-                <li class="nav-item"><a href="login.html">Iniciar Sesión</a></li>
-                <li class="nav-item"><a href="register.html">Registrarse</a></li>
-            </ul>
-        </nav>
-
-        <main class="main-content">
-            <section class="welcome-section">
-                <h2>Bienvenido a Taximoto</h2>
-                <p>La plataforma comunitaria que conecta pasajeros con motorizados y taxistas de confianza en tu sector.</p>
-            </section>
-
-            <div class="cards-container">
-                <div class="card">
-                    <div class="card-icon">🚗</div>
-                    <h3>¿Necesitas un viaje?</h3>
-                    <p>Solicita un motorizado o taxi de forma rápida y sencilla</p>
-                    <a href="request.html" class="btn btn-primary">Solicitar Ahora</a>
-                </div>
-                
-                <div class="card">
-                    <div class="card-icon">🏍️</div>
-                    <h3>¿Eres conductor?</h3>
-                    <p>Regístrate como motorizado o taxista y comienza a generar ingresos</p>
-                    <a href="register.html" class="btn btn-secondary">Registrarme como Conductor</a>
-                </div>
-                
-                <div class="card">
-                    <div class="card-icon">ℹ️</div>
-                    <h3>¿Cómo funciona?</h3>
-                    <p>Conoce cómo Taximoto conecta tu comunidad de forma segura</p>
-                    <button class="btn btn-outline" onclick="alert('Función próximamente disponible')">Más Información</button>
-                </div>
-            </div>
-
-            <section class="legal-notice">
-                <h4>⚠️ Aviso Legal Importante</h4>
-                <p>Taximoto es una plataforma que solo conecta usuarios con conductores. La plataforma no se hace responsable por accidentes, robos, pérdidas, daños o conflictos entre usuarios y conductores. Los pagos entre cliente y conductor son responsabilidad exclusiva de ambas partes.</p>
-            </section>
-        </main>
-
-        <footer class="main-footer">
-            <p>&copy; 2026 Taximoto. Todos los derechos reservados.</p>
-            <p>Versión 1.0.0</p>
-        </footer>
+    
+    <div class="container">
+        <div class="card">
+            <h2>Bienvenido</h2>
+            <p>La forma más rápida y segura de moverte</p>
+            
+            <a href="login.html" class="btn btn-primary">Iniciar sesión</a>
+            <a href="register.html" class="btn btn-secondary">Registrarse</a>
+        </div>
+        
+        <div class="card">
+            <h3>🚕 Taxi</h3>
+            <p>Viajes rápidos y seguros</p>
+        </div>
+        
+        <div class="card">
+            <h3>🛵 Mototaxi</h3>
+            <p>Llega más rápido a tu destino</p>
+        </div>
+        
+        <div class="card">
+            <h3>📦 Delivery</h3>
+            <p>Envíos de comida y productos</p>
+        </div>
+        
+        <div class="legal-notice">
+            TAXIMOTO solo conecta conductores con usuarios. No se hace responsable por pagos, accidentes, daños o conflictos.
+        </div>
     </div>
-
-    <script src="js/app.js"></script>
 </body>
 </html>
