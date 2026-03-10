@@ -2,10 +2,11 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes, viewport-fit=cover">
     <title>TAXIMOTO - Registro</title>
     <link rel="stylesheet" href="css/styles.css">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://www.google.com/recaptcha/api.js" async defer></script>
     <script src="supabase/config.js"></script>
     <script src="js/auth.js"></script>
 </head>
@@ -17,38 +18,50 @@
     
     <div class="container">
         <div class="tabs">
-            <button class="tab active" onclick="showTab('usuario')">Usuario</button>
-            <button class="tab" onclick="showTab('taxi')">Taxi</button>
-            <button class="tab" onclick="showTab('mototaxi')">Mototaxi</button>
-            <button class="tab" onclick="showTab('comercio')">Comercio</button>
+            <button class="tab active" onclick="showTab('usuario')">👤 Usuario</button>
+            <button class="tab" onclick="showTab('taxi')">🚕 Taxi</button>
+            <button class="tab" onclick="showTab('mototaxi')">🛵 Mototaxi</button>
+            <button class="tab" onclick="showTab('comercio')">🏪 Comercio</button>
         </div>
         
         <!-- Registro Usuario -->
         <div id="form-usuario" class="card" style="display: block;">
             <form onsubmit="registrarUsuario(event)">
                 <div class="form-group">
-                    <label>Nombre completo</label>
-                    <input type="text" id="nombre" required>
+                    <label>👤 Nombre completo</label>
+                    <input type="text" id="nombre" required placeholder="Ej: Luis Pérez">
                 </div>
                 
                 <div class="form-group">
-                    <label>Teléfono</label>
-                    <input type="tel" id="telefono" required>
+                    <label>📱 Teléfono</label>
+                    <input type="tel" id="telefono" required placeholder="04121234567" inputmode="numeric">
                 </div>
                 
                 <div class="form-group">
-                    <label>Contraseña</label>
-                    <input type="password" id="password" required>
+                    <label>🔒 Contraseña</label>
+                    <div class="password-container">
+                        <input type="password" id="password" required placeholder="Mínimo 6 caracteres" minlength="6">
+                        <span class="password-toggle" onclick="togglePassword('password')">👁️</span>
+                    </div>
                 </div>
                 
                 <div class="form-group">
-                    <label>Foto de perfil</label>
+                    <label>📸 Foto de perfil</label>
                     <input type="file" id="foto" accept="image/*" required>
                 </div>
                 
                 <div class="form-group">
-                    <label>Cédula de identidad</label>
+                    <label>🆔 Cédula de identidad</label>
                     <input type="file" id="cedula" accept="image/*" required>
+                </div>
+                
+                <!-- reCAPTCHA -->
+                <div class="g-recaptcha" data-sitekey="6Lc3S4YsAAAAAB8xiQm1nMzFGAnFKD_kaBVSshBK"></div>
+                
+                <!-- Términos y condiciones -->
+                <div class="terms-checkbox">
+                    <input type="checkbox" id="terms" required>
+                    <label for="terms">Acepto los <a href="#" onclick="showTerms()">términos y condiciones</a> y el <a href="#" onclick="showPrivacy()">aviso de privacidad</a></label>
                 </div>
                 
                 <button type="submit" class="btn btn-primary">Registrarme</button>
@@ -63,59 +76,73 @@
                 <div class="form-group">
                     <label>Tipo</label>
                     <select id="tipo-select" onchange="document.getElementById('tipo').value=this.value">
-                        <option value="taxi">Taxi</option>
-                        <option value="mototaxi">Mototaxi</option>
+                        <option value="taxi">🚕 Taxi</option>
+                        <option value="mototaxi">🛵 Mototaxi</option>
                     </select>
                 </div>
                 
                 <div class="form-group">
-                    <label>Nombre completo</label>
-                    <input type="text" id="nombre" required>
+                    <label>👤 Nombre completo</label>
+                    <input type="text" id="nombre" required placeholder="Ej: Carlos Rodríguez">
                 </div>
                 
                 <div class="form-group">
-                    <label>Teléfono</label>
-                    <input type="tel" id="telefono" required>
+                    <label>📱 Teléfono</label>
+                    <input type="tel" id="telefono" required placeholder="04121234567">
                 </div>
                 
                 <div class="form-group">
-                    <label>Contraseña</label>
-                    <input type="password" id="password" required>
+                    <label>🔒 Contraseña</label>
+                    <div class="password-container">
+                        <input type="password" id="password" required minlength="6">
+                        <span class="password-toggle" onclick="togglePassword('password')">👁️</span>
+                    </div>
                 </div>
                 
-                <h3>Vehículo</h3>
+                <h3 style="color: var(--accent-green); margin: 15px 0;">🚗 Datos del vehículo</h3>
                 
                 <div class="form-group">
-                    <label>Placa</label>
-                    <input type="text" id="placa" required>
-                </div>
-                
-                <div class="form-group">
-                    <label>Modelo</label>
-                    <input type="text" id="modelo" required>
-                </div>
-                
-                <div class="form-group">
-                    <label>Color</label>
-                    <input type="text" id="color" required>
+                    <label>🚘 Placa</label>
+                    <input type="text" id="placa" required placeholder="ABC123">
                 </div>
                 
                 <div class="form-group">
-                    <label>Foto de perfil</label>
+                    <label>🚙 Modelo</label>
+                    <input type="text" id="modelo" required placeholder="Ej: Toyota Corolla">
+                </div>
+                
+                <div class="form-group">
+                    <label>🎨 Color</label>
+                    <input type="text" id="color" required placeholder="Ej: Rojo">
+                </div>
+                
+                <h3 style="color: var(--accent-green); margin: 15px 0;">📸 Documentos</h3>
+                
+                <div class="form-group">
+                    <label>📸 Foto de perfil</label>
                     <input type="file" id="foto" accept="image/*" required>
                 </div>
                 
                 <div class="form-group">
-                    <label>Cédula de identidad</label>
+                    <label>🆔 Cédula de identidad</label>
                     <input type="file" id="cedula" accept="image/*" required>
                 </div>
                 
                 <div class="form-group">
-                    <label>Licencia de conducir</label>
+                    <label>📄 Licencia de conducir</label>
                     <input type="file" id="licencia" accept="image/*" required>
                 </div>
                 
-                <button type="submit" class="btn btn-primary">Registrarme</button>
+                <!-- reCAPTCHA -->
+                <div class="g-recaptcha" data-sitekey="6Lc3S4YsAAAAAB8xiQm1nMzFGAnFKD_kaBVSshBK"></div>
+                
+                <!-- Términos -->
+                <div class="terms-checkbox">
+                    <input type="checkbox" id="terms-conductor" required>
+                    <label for="terms-conductor">Acepto los <a href="#" onclick="showTerms()">términos y condiciones</a></label>
+                </div>
+                
+                <button type="submit" class="btn btn-primary">Registrarme como conductor</button>
             </form>
         </div>
         
@@ -123,33 +150,45 @@
         <div id="form-comercio" class="card" style="display: none;">
             <form onsubmit="registrarComercio(event)">
                 <div class="form-group">
-                    <label>Nombre del comercio</label>
-                    <input type="text" id="nombre_comercio" required>
+                    <label>🏪 Nombre del comercio</label>
+                    <input type="text" id="nombre_comercio" required placeholder="Ej: Panadería El Sol">
                 </div>
                 
                 <div class="form-group">
-                    <label>Nombre del dueño</label>
-                    <input type="text" id="nombre_dueno" required>
+                    <label>👤 Nombre del dueño</label>
+                    <input type="text" id="nombre_dueno" required placeholder="Ej: María González">
                 </div>
                 
                 <div class="form-group">
-                    <label>Teléfono</label>
-                    <input type="tel" id="telefono" required>
+                    <label>📱 Teléfono</label>
+                    <input type="tel" id="telefono" required placeholder="04121234567">
                 </div>
                 
                 <div class="form-group">
-                    <label>Contraseña</label>
-                    <input type="password" id="password" required>
+                    <label>🔒 Contraseña</label>
+                    <div class="password-container">
+                        <input type="password" id="password" required minlength="6">
+                        <span class="password-toggle" onclick="togglePassword('password')">👁️</span>
+                    </div>
                 </div>
                 
                 <div class="form-group">
-                    <label>Foto del comercio</label>
+                    <label>📸 Foto del comercio</label>
                     <input type="file" id="foto" accept="image/*" required>
                 </div>
                 
                 <div class="form-group">
-                    <label>Cédula del dueño</label>
+                    <label>🆔 Cédula del dueño</label>
                     <input type="file" id="cedula" accept="image/*" required>
+                </div>
+                
+                <!-- reCAPTCHA -->
+                <div class="g-recaptcha" data-sitekey="6Lc3S4YsAAAAAB8xiQm1nMzFGAnFKD_kaBVSshBK"></div>
+                
+                <!-- Términos -->
+                <div class="terms-checkbox">
+                    <input type="checkbox" id="terms-comercio" required>
+                    <label for="terms-comercio">Acepto los <a href="#" onclick="showTerms()">términos y condiciones</a></label>
                 </div>
                 
                 <button type="submit" class="btn btn-primary">Registrar comercio</button>
@@ -163,13 +202,16 @@
     
     <script>
         function showTab(tab) {
+            // Quitar active de todos
             document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
             event.target.classList.add('active');
             
+            // Ocultar todos
             document.getElementById('form-usuario').style.display = 'none';
             document.getElementById('form-conductor').style.display = 'none';
             document.getElementById('form-comercio').style.display = 'none';
             
+            // Mostrar el seleccionado
             if (tab === 'usuario') {
                 document.getElementById('form-usuario').style.display = 'block';
             } else if (tab === 'taxi' || tab === 'mototaxi') {
@@ -180,6 +222,33 @@
                 document.getElementById('form-comercio').style.display = 'block';
             }
         }
+
+        function togglePassword(inputId) {
+            const input = document.getElementById(inputId);
+            const type = input.type === 'password' ? 'text' : 'password';
+            input.type = type;
+            event.target.textContent = type === 'password' ? '👁️' : '👁️‍🗨️';
+        }
+
+        function showTerms() {
+            alert('TÉRMINOS Y CONDICIONES\n\nAl registrarte en TAXIMOTO aceptas:\n\n1. Proporcionar información veraz\n2. Usar la app de forma responsable\n3. Los conductores son independientes\n4. TAXIMOTO solo conecta, no transporta\n5. Pago semanal: $5 USD');
+        }
+
+        function showPrivacy() {
+            alert('AVISO DE PRIVACIDAD\n\nTus datos personales (fotos, cédula) se usan solo para verificar tu identidad y no se comparten con terceros sin tu consentimiento.');
+        }
+
+        // Cargar tipo si viene por URL
+        document.addEventListener('DOMContentLoaded', function() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const role = urlParams.get('role');
+            
+            if (role === 'conductor') {
+                showTab('taxi');
+            } else if (role === 'comercio') {
+                showTab('comercio');
+            }
+        });
     </script>
 </body>
 </html>
