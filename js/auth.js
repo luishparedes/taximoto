@@ -1,44 +1,119 @@
-// Sistema de autenticación
+// Sistema de autenticación - VERSIÓN CORREGIDA
+
+// ESPERAR a que cargue el DOM y Supabase
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('✅ Auth.js cargado');
+    
+    // Verificar que supabase existe
+    if (typeof supabase === 'undefined' && typeof window.SUPABASE !== 'undefined') {
+        window.supabase = window.SUPABASE;
+    }
+});
 
 // Función para registrar usuario normal
 async function registrarUsuario(event) {
     event.preventDefault();
     
-    const nombre = document.getElementById('nombre').value;
-    const telefono = document.getElementById('telefono').value;
-    const password = document.getElementById('password').value;
-    const fotoFile = document.getElementById('foto').files[0];
-    const cedulaFile = document.getElementById('cedula').files[0];
+    console.log('📝 Iniciando registro...');
+    
+    // Verificar que supabase existe
+    if (typeof supabase === 'undefined' && typeof window.SUPABASE !== 'undefined') {
+        window.supabase = window.SUPABASE;
+    }
+    
+    if (typeof supabase === 'undefined') {
+        alert('Error de conexión: Supabase no está disponible');
+        console.error('❌ supabase no está definido');
+        return;
+    }
+    
+    // Verificar reCAPTCHA
+    if (typeof grecaptcha !== 'undefined' && grecaptcha.getResponse) {
+        const recaptchaResponse = grecaptcha.getResponse();
+        if (!recaptchaResponse) {
+            alert('Por favor, verifica que no eres un robot');
+            return;
+        }
+    }
+    
+    // Obtener valores
+    const nombre = document.getElementById('nombre')?.value;
+    const telefono = document.getElementById('telefono')?.value;
+    const password = document.getElementById('password')?.value;
+    const fotoFile = document.getElementById('foto')?.files[0];
+    const cedulaFile = document.getElementById('cedula')?.files[0];
+    
+    // Validaciones
+    if (!nombre || !telefono || !password || !fotoFile || !cedulaFile) {
+        alert('Todos los campos son obligatorios');
+        return;
+    }
+    
+    if (password.length < 6) {
+        alert('La contraseña debe tener al menos 6 caracteres');
+        return;
+    }
+    
+    if (telefono.length < 10) {
+        alert('El teléfono debe tener al menos 10 dígitos');
+        return;
+    }
     
     try {
+        console.log('1. Creando usuario en Auth...');
+        
         // 1. Crear usuario en Auth
         const { data: authData, error: authError } = await supabase.auth.signUp({
-            email: `${telefono}@taximoto.com`, // Usamos teléfono como email único
+            email: `${telefono}@taximoto.com`,
             password: password,
-            phone: telefono
+            options: {
+                data: {
+                    nombre: nombre,
+                    telefono: telefono
+                }
+            }
         });
         
-        if (authError) throw authError;
+        if (authError) {
+            console.error('❌ Error Auth:', authError);
+            throw new Error(authError.message);
+        }
+        
+        if (!authData || !authData.user) {
+            throw new Error('No se pudo crear el usuario');
+        }
+        
+        console.log('✅ Usuario creado en Auth:', authData.user.id);
         
         // 2. Subir foto
-        const fotoPath = `usuarios/${authData.user.id}/foto.jpg`;
+        console.log('2. Subiendo foto...');
+        const fotoNombre = `usuarios/${authData.user.id}/foto_${Date.now()}.jpg`;
         const { error: fotoError } = await supabase.storage
             .from('fotos')
-            .upload(fotoPath, fotoFile);
+            .upload(fotoNombre, fotoFile);
             
-        if (fotoError) throw fotoError;
+        if (fotoError) {
+            console.error('❌ Error subiendo foto:', fotoError);
+            throw fotoError;
+        }
         
         // 3. Subir cédula
-        const cedulaPath = `usuarios/${authData.user.id}/cedula.jpg`;
+        console.log('3. Subiendo cédula...');
+        const cedulaNombre = `usuarios/${authData.user.id}/cedula_${Date.now()}.jpg`;
         const { error: cedulaError } = await supabase.storage
             .from('cedulas')
-            .upload(cedulaPath, cedulaFile);
+            .upload(cedulaNombre, cedulaFile);
             
-        if (cedulaError) throw cedulaError;
+        if (cedulaError) {
+            console.error('❌ Error subiendo cédula:', cedulaError);
+            throw cedulaError;
+        }
         
-        // 4. Obtener URLs públicas
-        const fotoUrl = supabase.storage.from('fotos').getPublicUrl(fotoPath).data.publicUrl;
-        const cedulaUrl = supabase.storage.from('cedulas').getPublicUrl(cedulaPath).data.publicUrl;
+        // 4. Obtener URLs
+        const fotoUrl = supabase.storage.from('fotos').getPublicUrl(fotoNombre).data.publicUrl;
+        const cedulaUrl = supabase.storage.from('cedulas').getPublicUrl(cedulaNombre).data.publicUrl;
+        
+        console.log('4. Guardando en base de datos...');
         
         // 5. Crear registro en tabla usuarios
         const { error: dbError } = await supabase
@@ -50,167 +125,45 @@ async function registrarUsuario(event) {
                 rol: 'usuario',
                 foto_url: fotoUrl,
                 cedula_url: cedulaUrl,
-                activo: true // Usuarios normales se activan automáticamente
+                activo: true
             });
             
-        if (dbError) throw dbError;
+        if (dbError) {
+            console.error('❌ Error DB:', dbError);
+            throw dbError;
+        }
         
-        alert('Registro exitoso. Ya puedes iniciar sesión.');
+        // Guardar teléfono para recordar
+        try {
+            localStorage.setItem('taximoto_phone', telefono);
+        } catch (e) {
+            console.warn('No se pudo guardar en localStorage');
+        }
+        
+        console.log('✅ Registro completado exitosamente');
+        alert('✅ Registro exitoso. Ya puedes iniciar sesión.');
         window.location.href = 'login.html';
         
     } catch (error) {
-        console.error('Error en registro:', error);
-        alert('Error en el registro: ' + error.message);
+        console.error('❌ Error completo:', error);
+        alert('Error en el registro: ' + (error.message || 'Error desconocido'));
     }
 }
 
-// Función para registrar conductor
-async function registrarConductor(event) {
-    event.preventDefault();
-    
-    const nombre = document.getElementById('nombre').value;
-    const telefono = document.getElementById('telefono').value;
-    const password = document.getElementById('password').value;
-    const tipo = document.getElementById('tipo').value;
-    const placa = document.getElementById('placa').value;
-    const modelo = document.getElementById('modelo').value;
-    const color = document.getElementById('color').value;
-    const fotoFile = document.getElementById('foto').files[0];
-    const cedulaFile = document.getElementById('cedula').files[0];
-    const licenciaFile = document.getElementById('licencia').files[0];
-    
-    try {
-        // 1. Crear usuario en Auth
-        const { data: authData, error: authError } = await supabase.auth.signUp({
-            email: `${telefono}@taximoto.com`,
-            password: password,
-            phone: telefono
-        });
-        
-        if (authError) throw authError;
-        
-        // 2. Subir archivos
-        const fotoPath = `conductores/${authData.user.id}/foto.jpg`;
-        const cedulaPath = `conductores/${authData.user.id}/cedula.jpg`;
-        const licenciaPath = `conductores/${authData.user.id}/licencia.jpg`;
-        
-        await supabase.storage.from('fotos').upload(fotoPath, fotoFile);
-        await supabase.storage.from('cedulas').upload(cedulaPath, cedulaFile);
-        await supabase.storage.from('licencias').upload(licenciaPath, licenciaFile);
-        
-        const fotoUrl = supabase.storage.from('fotos').getPublicUrl(fotoPath).data.publicUrl;
-        const cedulaUrl = supabase.storage.from('cedulas').getPublicUrl(cedulaPath).data.publicUrl;
-        const licenciaUrl = supabase.storage.from('licencias').getPublicUrl(licenciaPath).data.publicUrl;
-        
-        // 3. Crear usuario
-        const { data: usuarioData, error: dbError } = await supabase
-            .from('usuarios')
-            .insert({
-                auth_id: authData.user.id,
-                nombre: nombre,
-                telefono: telefono,
-                rol: tipo,
-                foto_url: fotoUrl,
-                cedula_url: cedulaUrl,
-                activo: false
-            })
-            .select()
-            .single();
-            
-        if (dbError) throw dbError;
-        
-        // 4. Crear registro en conductores
-        const { error: conductorError } = await supabase
-            .from('conductores')
-            .insert({
-                usuario_id: usuarioData.id,
-                tipo_vehiculo: tipo,
-                licencia_url: licenciaUrl,
-                placa: placa,
-                modelo: modelo,
-                color: color
-            });
-            
-        if (conductorError) throw conductorError;
-        
-        alert('Registro exitoso. Tu cuenta está pendiente de activación. Comunícate con el administrador: 04125278450');
-        window.location.href = 'login.html';
-        
-    } catch (error) {
-        console.error('Error en registro conductor:', error);
-        alert('Error en el registro: ' + error.message);
-    }
-}
-
-// Función para registrar comercio
-async function registrarComercio(event) {
-    event.preventDefault();
-    
-    const nombre_comercio = document.getElementById('nombre_comercio').value;
-    const telefono = document.getElementById('telefono').value;
-    const password = document.getElementById('password').value;
-    const nombre_dueno = document.getElementById('nombre_dueno').value;
-    const fotoFile = document.getElementById('foto').files[0];
-    const cedulaFile = document.getElementById('cedula').files[0];
-    
-    try {
-        const { data: authData, error: authError } = await supabase.auth.signUp({
-            email: `${telefono}@taximoto.com`,
-            password: password,
-            phone: telefono
-        });
-        
-        if (authError) throw authError;
-        
-        const fotoPath = `comercios/${authData.user.id}/foto.jpg`;
-        const cedulaPath = `comercios/${authData.user.id}/cedula.jpg`;
-        
-        await supabase.storage.from('fotos').upload(fotoPath, fotoFile);
-        await supabase.storage.from('cedulas').upload(cedulaPath, cedulaFile);
-        
-        const fotoUrl = supabase.storage.from('fotos').getPublicUrl(fotoPath).data.publicUrl;
-        const cedulaUrl = supabase.storage.from('cedulas').getPublicUrl(cedulaPath).data.publicUrl;
-        
-        const { data: usuarioData, error: dbError } = await supabase
-            .from('usuarios')
-            .insert({
-                auth_id: authData.user.id,
-                nombre: nombre_dueno,
-                telefono: telefono,
-                rol: 'comercio',
-                foto_url: fotoUrl,
-                cedula_url: cedulaUrl,
-                activo: false
-            })
-            .select()
-            .single();
-            
-        if (dbError) throw dbError;
-        
-        const { error: comercioError } = await supabase
-            .from('comercios')
-            .insert({
-                usuario_id: usuarioData.id,
-                nombre_comercio: nombre_comercio
-            });
-            
-        if (comercioError) throw comercioError;
-        
-        alert('Registro exitoso. Tu cuenta está pendiente de activación. Comunícate con el administrador: 04125278450');
-        window.location.href = 'login.html';
-        
-    } catch (error) {
-        console.error('Error en registro comercio:', error);
-        alert('Error en el registro: ' + error.message);
-    }
-}
-
-// Función de login
+// Función de login mejorada
 async function login(event) {
     event.preventDefault();
     
-    const telefono = document.getElementById('telefono').value;
-    const password = document.getElementById('password').value;
+    console.log('🔑 Iniciando sesión...');
+    
+    const telefono = document.getElementById('telefono')?.value;
+    const password = document.getElementById('password')?.value;
+    const remember = document.getElementById('remember')?.checked || false;
+    
+    if (!telefono || !password) {
+        alert('Teléfono y contraseña son obligatorios');
+        return;
+    }
     
     try {
         const { data, error } = await supabase.auth.signInWithPassword({
@@ -218,65 +171,78 @@ async function login(event) {
             password: password
         });
         
-        if (error) throw error;
+        if (error) {
+            console.error('❌ Error login:', error);
+            throw error;
+        }
         
-        // Verificar si está activo
+        if (remember) {
+            try {
+                localStorage.setItem('taximoto_phone', telefono);
+            } catch (e) {}
+        }
+        
+        console.log('✅ Login exitoso');
+        
+        // Obtener datos del usuario
         const { data: usuario } = await supabase
             .from('usuarios')
             .select('*')
             .eq('auth_id', data.user.id)
             .single();
-            
-        if (!usuario.activo && usuario.rol !== 'usuario') {
-            alert('Tu cuenta está pendiente de activación. Comunícate con el administrador: 04125278450');
-            await supabase.auth.signOut();
-            return;
-        }
         
         // Redirigir según rol
-        switch(usuario.rol) {
-            case 'admin':
-                window.location.href = 'admin/dashboard.html';
-                break;
-            case 'taxi':
-            case 'mototaxi':
-                window.location.href = 'conductor-dashboard.html';
-                break;
-            case 'comercio':
-                window.location.href = 'comercio-dashboard.html';
-                break;
-            default:
-                window.location.href = 'request.html';
+        if (usuario) {
+            if (!usuario.activo && !['usuario', 'admin'].includes(usuario.rol)) {
+                alert('Tu cuenta está pendiente de activación');
+                await supabase.auth.signOut();
+                return;
+            }
+            
+            // Redirección
+            const redirecciones = {
+                'admin': 'admin/dashboard.html',
+                'taxi': 'conductor-dashboard.html',
+                'mototaxi': 'conductor-dashboard.html',
+                'comercio': 'comercio-dashboard.html',
+                'usuario': 'request.html'
+            };
+            
+            window.location.href = redirecciones[usuario.rol] || 'request.html';
         }
         
     } catch (error) {
-        console.error('Error en login:', error);
-        alert('Error en login: ' + error.message);
+        console.error('❌ Error:', error);
+        alert('Error: ' + (error.message || 'Credenciales incorrectas'));
     }
 }
 
-// Función de logout
+// Función para volver al inicio (fácil de usar)
+function goHome() {
+    window.location.href = 'index.html';
+}
+
+// Logout
 async function logout() {
     await supabase.auth.signOut();
     window.location.href = 'login.html';
 }
 
-// Verificar sesión actual
+// Verificar sesión
 async function checkSession() {
     const { data: { session } } = await supabase.auth.getSession();
     return session;
 }
 
-// Obtener usuario actual con datos
-async function getCurrentUser() {
-    const session = await checkSession();
-    if (!session) return null;
-    
-    const { data: usuario } = await supabase
-        .from('usuarios')
-        .select('*, conductores(*), comercios(*)')
-        .eq('auth_id', session.user.id)
-        .single();
-        
-    return usuario;
-}
+// Función para mostrar/ocultar contraseña (global)
+window.togglePassword = function(inputId) {
+    const input = document.getElementById(inputId);
+    if (input) {
+        const type = input.type === 'password' ? 'text' : 'password';
+        input.type = type;
+        const toggle = event.target;
+        if (toggle) {
+            toggle.textContent = type === 'password' ? '👁️' : '👁️‍🗨️';
+        }
+    }
+};

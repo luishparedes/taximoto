@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes, viewport-fit=cover">
     <title>TAXIMOTO - Iniciar sesión</title>
     <link rel="stylesheet" href="css/styles.css">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -19,20 +19,35 @@
         <div class="card">
             <form onsubmit="login(event)">
                 <div class="form-group">
-                    <label>Teléfono</label>
-                    <input type="tel" id="telefono" required placeholder="04121234567">
+                    <label>📱 Teléfono</label>
+                    <input type="tel" id="telefono" required placeholder="04121234567" inputmode="numeric">
                 </div>
                 
                 <div class="form-group">
-                    <label>Contraseña</label>
-                    <input type="password" id="password" required>
+                    <label>🔒 Contraseña</label>
+                    <div class="password-container">
+                        <input type="password" id="password" required placeholder="Ingresa tu contraseña">
+                        <span class="password-toggle" onclick="togglePassword('password')">👁️</span>
+                    </div>
                 </div>
                 
-                <button type="submit" class="btn btn-primary">Ingresar</button>
+                <!-- Checkbox Recordar sesión -->
+                <div class="terms-checkbox">
+                    <input type="checkbox" id="remember" checked>
+                    <label for="remember">Mantener sesión iniciada</label>
+                </div>
+                
+                <button type="submit" class="btn btn-primary btn-large">Ingresar</button>
             </form>
             
-            <p style="text-align: center; margin-top: 20px;">
+            <p style="text-align: center; margin: 20px 0;">
                 ¿No tienes cuenta? <a href="register.html" style="color: var(--accent-green);">Regístrate</a>
+            </p>
+            
+            <p style="text-align: center;">
+                <a href="#" style="color: var(--text-gray); text-decoration: none; font-size: 0.9rem;" onclick="alert('Contacta al administrador: 04125278450')">
+                    ¿Olvidaste tu contraseña?
+                </a>
             </p>
         </div>
         
@@ -40,5 +55,26 @@
             TAXIMOTO solo conecta conductores con usuarios. No se hace responsable por pagos, accidentes, daños o conflictos.
         </div>
     </div>
+
+    <script>
+        // Función para mostrar/ocultar contraseña
+        function togglePassword(inputId) {
+            const input = document.getElementById(inputId);
+            const type = input.type === 'password' ? 'text' : 'password';
+            input.type = type;
+            
+            // Cambiar el ícono
+            const toggle = event.target;
+            toggle.textContent = type === 'password' ? '👁️' : '👁️‍🗨️';
+        }
+
+        // Cargar teléfono guardado si existe
+        document.addEventListener('DOMContentLoaded', function() {
+            const savedPhone = localStorage.getItem('taximoto_phone');
+            if (savedPhone) {
+                document.getElementById('telefono').value = savedPhone;
+            }
+        });
+    </script>
 </body>
 </html>
