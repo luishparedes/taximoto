@@ -2,8 +2,8 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes">
-    <title>Taximoto - Transporte Comunitario</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Taximoto - Inicio</title>
     <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
@@ -16,7 +16,7 @@
         <header class="main-header">
             <div class="logo-container">
                 <h1 class="logo">🚖 Taximoto</h1>
-                <p class="slogan">Transporte comunitario seguro</p>
+                <p class="slogan">Transporte comunitario</p>
             </div>
         </header>
 
@@ -29,37 +29,33 @@
         </nav>
 
         <main class="main-content">
-            <section class="welcome-section">
-                <h2>Bienvenido a Taximoto</h2>
-                <p>Conectamos pasajeros con motorizados y taxistas de confianza en tu sector.</p>
-            </section>
-
             <div class="cards-container">
                 <div class="card">
                     <div class="card-icon">🚗</div>
-                    <h3>¿Necesitas un viaje?</h3>
-                    <p>Solicita un motorizado o taxi de forma rápida</p>
+                    <h3>Solicitar Viaje</h3>
+                    <p>¿Necesitas un motorizado o taxi?</p>
                     <a href="request.html" class="btn btn-primary">Solicitar Ahora</a>
                 </div>
                 <div class="card">
                     <div class="card-icon">🏍️</div>
-                    <h3>¿Eres conductor?</h3>
-                    <p>Regístrate y comienza a generar ingresos</p>
-                    <a href="register.html" class="btn btn-secondary">Registrarme como Conductor</a>
+                    <h3>Ser Conductor</h3>
+                    <p>Regístrate y comienza a ganar</p>
+                    <a href="register.html" class="btn btn-secondary">Registrarme</a>
                 </div>
             </div>
-
-            <section class="legal-notice">
-                <h4>⚠️ Aviso Legal Importante</h4>
-                <p>Taximoto es una plataforma que solo conecta usuarios con conductores. No nos responsabilizamos por accidentes, robos, pérdidas o daños durante el servicio. Los pagos son responsabilidad exclusiva de las partes.</p>
-            </section>
         </main>
 
         <footer class="main-footer">
-            <p>&copy; 2026 Taximoto. Todos los derechos reservados.</p>
+            <p>&copy; 2026 Taximoto</p>
         </footer>
     </div>
 
-    <script src="js/app.js"></script>
+    <script>
+        // Ocultar pantalla de carga
+        setTimeout(function() {
+            document.getElementById('loading-screen').style.display = 'none';
+            document.getElementById('app').style.display = 'block';
+        }, 1000);
+    </script>
 </body>
 </html>
