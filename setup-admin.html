@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Configurar Administrador - Taximoto</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body { 
+            background: #0f0f0f; 
+            font-family: Arial, sans-serif;
+            display: flex; 
+            justify-content: center; 
+            align-items: center; 
+            min-height: 100vh; 
+            margin: 0;
+            padding: 20px;
+        }
+        .container { 
+            max-width: 450px; 
+            width: 100%;
+            background: #1a1a1a; 
+            padding: 40px; 
+            border-radius: 30px; 
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+        h1 { 
+            color: #ff6b00; 
+            margin-bottom: 10px;
+            font-size: 28px;
+        }
+        p {
+            color: #b0b0b0;
+            margin-bottom: 30px;
+            font-size: 16px;
+        }
+        .grupo {
+            margin-bottom: 25px;
+        }
+        .grupo label {
+            display: block;
+            margin-bottom: 8px;
+            color: #b0b0b0;
+            font-weight: bold;
+            font-size: 14px;
+        }
+        .grupo input {
+            width: 100%;
+            padding: 15px;
+            background: #2a2a2a;
+            border: 2px solid #404040;
+            border-radius: 12px;
+            color: white;
+            font-size: 16px;
+        }
+        .grupo input:focus {
+            outline: none;
+            border-color: #ff6b00;
+        }
+        button {
+            width: 100%;
+            padding: 16px;
+            background: #ff6b00;
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        button:hover {
+            background: #e06000;
+        }
+        .mensaje {
+            padding: 15px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            font-size: 15px;
+            display: none;
+        }
+        .mensaje.error {
+            background: #442222;
+            color: #ff8888;
+            border: 1px solid #662222;
+            display: block;
+        }
+        .mensaje.exito {
+            background: #224422;
+            color: #88ff88;
+            border: 1px solid #226622;
+            display: block;
+        }
+        .cargando {
+            text-align: center;
+            color: #ff6b00;
+            margin: 10px 0;
+            display: none;
+        }
+        .cargando.activo {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔐 Taximoto Admin</h1>
+        <p>Crea la cuenta de administrador</p>
+        
+        <div id="mensaje"></div>
+        <div id="cargando" class="cargando">Creando administrador, espera...</div>
+        
+        <div class="grupo">
+            <label>Correo electrónico:</label>
+            <input type="email" id="email" value="admin@taximoto.com" placeholder="admin@taximoto.com">
+        </div>
+        
+        <div class="grupo">
+            <label>Contraseña:</label>
+            <input type="text" id="password" value="Admin123456" placeholder="Admin123456">
+        </div>
+        
+        <button onclick="crearAdmin()">Crear Administrador</button>
+        
+        <p style="margin-top: 20px; text-align: center; color: #666; font-size: 14px;">
+            Después de crear, ve a <a href="login.html" style="color: #ff6b00;">Iniciar Sesión</a>
+        </p>
+    </div>
+
+    <script>
+        // Configuración de Supabase (NO CAMBIAR)
+        const SUPABASE_URL = 'https://zzpytqixsvxeoyqonsul.supabase.co';
+        const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp6cHl0cWl4c3Z4ZW95cW9uc3VsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDE1OTU5MTAsImV4cCI6MjA1NzE3MTkxMH0.dxJkF_nj2NhIvFaKyiWgiQ_PAx5ZQLZ';
+
+        async function crearAdmin() {
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            const mensajeDiv = document.getElementById('mensaje');
+            const cargandoDiv = document.getElementById('cargando');
+            
+            // Limpiar mensajes anteriores
+            mensajeDiv.className = 'mensaje';
+            mensajeDiv.style.display = 'none';
+            
+            // Validar
+            if (!email || !password) {
+                mensajeDiv.textContent = 'Completa todos los campos';
+                mensajeDiv.className = 'mensaje error';
+                return;
+            }
+            
+            if (password.length < 6) {
+                mensajeDiv.textContent = 'La contraseña debe tener al menos 6 caracteres';
+                mensajeDiv.className = 'mensaje error';
+                return;
+            }
+            
+            // Mostrar cargando
+            cargandoDiv.classList.add('activo');
+            
+            try {
+                // PASO 1: Crear usuario en Supabase Auth
+                const respuesta1 = await fetch(SUPABASE_URL + '/auth/v1/signup', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'apikey': SUPABASE_KEY,
+                    },
+                    body: JSON.stringify({
+                        email: email,
+                        password: password
+                    })
+                });
+                
+                const datos1 = await respuesta1.json();
+                
+                if (datos1.error) {
+                    throw new Error(datos1.error.message || 'Error al crear usuario');
+                }
+                
+                if (!datos1.id) {
+                    throw new Error('No se pudo crear el usuario');
+                }
+                
+                // PASO 2: Crear perfil de administrador
+                const respuesta2 = await fetch(SUPABASE_URL + '/rest/v1/profiles', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'apikey': SUPABASE_KEY,
+                        'Authorization': 'Bearer ' + SUPABASE_KEY,
+                        'Prefer': 'return=representation'
+                    },
+                    body: JSON.stringify({
+                        id: datos1.id,
+                        email: email,
+                        full_name: 'Administrador',
+                        phone: '0000000000',
+                        role: 'admin',
+                        status: 'active',
+                        sector: 'centro'
+                    })
+                });
+                
+                if (!respuesta2.ok) {
+                    throw new Error('Error al crear el perfil');
+                }
+                
+                // TODO EXITOSO
+                cargandoDiv.classList.remove('activo');
+                mensajeDiv.textContent = '✅ ADMINISTRADOR CREADO CON ÉXITO\n\nEmail: ' + email + '\nContraseña: ' + password;
+                mensajeDiv.className = 'mensaje exito';
+                
+                // Limpiar campos
+                document.getElementById('email').value = '';
+                document.getElementById('password').value = '';
+                
+            } catch (error) {
+                cargandoDiv.classList.remove('activo');
+                mensajeDiv.textContent = '❌ Error: ' + error.message;
+                mensajeDiv.className = 'mensaje error';
+                console.error(error);
+            }
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes">
+    <title>Taximoto - Registro</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <style>
+        .tab-container {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 25px;
+        }
+        .tab {
+            flex: 1;
+            text-align: center;
+            padding: 15px;
+            background: #2a2a2a;
+            border: 1px solid #404040;
+            border-radius: 50px;
+            cursor: pointer;
+            font-weight: 600;
+            color: #b0b0b0;
+        }
+        .tab.active {
+            background: #ff6b00;
+            color: white;
+            border-color: #ff6b00;
+        }
+        .driver-fields {
+            display: none;
+            border-top: 1px solid #333;
+            margin-top: 20px;
+            padding-top: 20px;
+        }
+        .driver-fields.show { display: block; }
+    </style>
+</head>
+<body>
+    <div id="loading-screen" class="loading-screen">
+        <div class="loader"></div>
+        <p>Cargando Taximoto...</p>
+    </div>
+
+    <div id="app" class="app-container">
+        <header class="main-header">
+            <div class="logo-container">
+                <h1 class="logo">🚖 Taximoto</h1>
+                <p class="slogan">Crea tu cuenta</p>
+            </div>
+        </header>
+
+        <nav class="main-nav">
+            <ul class="nav-list">
+                <li class="nav-item"><a href="index.html">Inicio</a></li>
+                <li class="nav-item"><a href="login.html">Iniciar Sesión</a></li>
+                <li class="nav-item active"><a href="register.html">Registrarse</a></li>
+            </ul>
+        </nav>
+
+        <main class="main-content">
+            <div class="form-container">
+                <h2>Únete a Taximoto</h2>
+                <p>Selecciona tu tipo de cuenta</p>
+                
+                <div id="error-message" class="error-message"></div>
+                <div id="success-message" class="success-message"></div>
+                
+                <div class="tab-container">
+                    <button type="button" id="btn-cliente" class="tab active">🚶 Cliente</button>
+                    <button type="button" id="btn-conductor" class="tab">🏍️ Conductor</button>
+                </div>
+                
+                <form id="register-form">
+                    <div class="form-group">
+                        <label for="nombre">Nombre completo:</label>
+                        <input type="text" id="nombre" placeholder="Ej: Juan Pérez" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="email">Correo electrónico:</label>
+                        <input type="email" id="email" placeholder="ejemplo@correo.com" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="password">Contraseña (mínimo 6 caracteres):</label>
+                        <input type="password" id="password" placeholder="********" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="phone">Teléfono (WhatsApp):</label>
+                        <input type="tel" id="phone" placeholder="Ej: 04121234567" required>
+                    </div>
+                    
+                    <div id="campos-conductor" class="driver-fields">
+                        <h3 style="color:#ff6b00;">Información del Conductor</h3>
+                        
+                        <div class="form-group">
+                            <label for="tipo">Tipo de conductor:</label>
+                            <select id="tipo">
+                                <option value="">Selecciona</option>
+                                <option value="motorizado">🏍️ Motorizado</option>
+                                <option value="taxista">🚖 Taxista</option>
+                            </select>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="cedula">Número de cédula:</label>
+                            <input type="text" id="cedula" placeholder="V-12345678">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="vehicle-brand">Marca del vehículo:</label>
+                            <input type="text" id="vehicle-brand" placeholder="Ej: Toyota">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="vehicle-model">Modelo:</label>
+                            <input type="text" id="vehicle-model" placeholder="Ej: Corolla">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="vehicle-year">Año:</label>
+                            <input type="number" id="vehicle-year" placeholder="2020" min="1990" max="2026">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="vehicle-color">Color:</label>
+                            <input type="text" id="vehicle-color" placeholder="Ej: Rojo">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="license-plate">Número de placa:</label>
+                            <input type="text" id="license-plate" placeholder="ABC123" style="text-transform:uppercase;">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="sector">Sector donde operas:</label>
+                            <select id="sector">
+                                <option value="centro">Centro</option>
+                                <option value="norte">Norte</option>
+                                <option value="sur">Sur</option>
+                                <option value="este">Este</option>
+                                <option value="oeste">Oeste</option>
+                            </select>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>
+                                <input type="checkbox" id="terms-driver">
+                                Acepto pagar la cuota semanal de $5 USD al ser aprobado
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>
+                            <input type="checkbox" id="terms" required>
+                            Acepto los <a href="#" style="color:#ff6b00;">términos y condiciones</a>
+                        </label>
+                    </div>
+                    
+                    <button type="button" id="btn-registrar" class="btn btn-primary" style="width:100%;">Registrarse</button>
+                </form>
+                
+                <p style="text-align:center; margin-top:20px;">
+                    ¿Ya tienes cuenta? <a href="login.html" style="color:#ff6b00;">Inicia sesión</a>
+                </p>
+            </div>
+        </main>
+
+        <footer class="main-footer">
+            <p>&copy; 2026 Taximoto</p>
+        </footer>
+    </div>
+
+    <script type="module">
+        import { registrarUsuario } from './js/auth.js'
+        
+        const btnCliente = document.getElementById('btn-cliente')
+        const btnConductor = document.getElementById('btn-conductor')
+        const camposConductor = document.getElementById('campos-conductor')
+        const errorMsg = document.getElementById('error-message')
+        const successMsg = document.getElementById('success-message')
+        
+        let tipoSeleccionado = 'cliente'
+        
+        btnCliente.onclick = function() {
+            tipoSeleccionado = 'cliente'
+            btnCliente.classList.add('active')
+            btnConductor.classList.remove('active')
+            camposConductor.classList.remove('show')
+        }
+        
+        btnConductor.onclick = function() {
+            tipoSeleccionado = 'conductor'
+            btnConductor.classList.add('active')
+            btnCliente.classList.remove('active')
+            camposConductor.classList.add('show')
+        }
+        
+        document.getElementById('btn-registrar').onclick = async function() {
+            const nombre = document.getElementById('nombre').value.trim()
+            const email = document.getElementById('email').value.trim()
+            const password = document.getElementById('password').value
+            const phone = document.getElementById('phone').value.trim()
+            const terms = document.getElementById('terms').checked
+            
+            if (!nombre || !email || !password || !phone || !terms) {
+                errorMsg.textContent = 'Completa todos los campos obligatorios'
+                errorMsg.classList.add('show')
+                successMsg.classList.remove('show')
+                return
+            }
+            
+            if (password.length < 6) {
+                errorMsg.textContent = 'La contraseña debe tener al menos 6 caracteres'
+                errorMsg.classList.add('show')
+                return
+            }
+            
+            const datos = {
+                fullname: nombre,
+                email: email,
+                password: password,
+                phone: phone,
+                role: tipoSeleccionado,
+                sector: 'centro'
+            }
+            
+            if (tipoSeleccionado === 'conductor') {
+                if (!document.getElementById('terms-driver').checked) {
+                    errorMsg.textContent = 'Debes aceptar la cuota de $5'
+                    errorMsg.classList.add('show')
+                    return
+                }
+                datos.driverType = document.getElementById('tipo')?.value || 'motorizado'
+                datos.cedula = document.getElementById('cedula')?.value || ''
+                datos.vehicleBrand = document.getElementById('vehicle-brand')?.value || ''
+                datos.vehicleModel = document.getElementById('vehicle-model')?.value || ''
+                datos.vehicleYear = document.getElementById('vehicle-year')?.value || ''
+                datos.vehicleColor = document.getElementById('vehicle-color')?.value || ''
+                datos.licensePlate = document.getElementById('license-plate')?.value || ''
+                datos.sector = document.getElementById('sector')?.value || 'centro'
+            }
+            
+            errorMsg.classList.remove('show')
+            successMsg.textContent = 'Registrando...'
+            successMsg.classList.add('show')
+            
+            try {
+                const resultado = await registrarUsuario(datos)
+                
+                if (resultado.success) {
+                    successMsg.textContent = resultado.message
+                    setTimeout(() => {
+                        window.location.href = 'login.html'
+                    }, 3000)
+                } else {
+                    errorMsg.textContent = resultado.error
+                    errorMsg.classList.add('show')
+                    successMsg.classList.remove('show')
+                }
+            } catch (error) {
+                errorMsg.textContent = 'Error al registrar'
+                errorMsg.classList.add('show')
+                successMsg.classList.remove('show')
+            }
+        }
+    </script>
+</body>
+</html>
