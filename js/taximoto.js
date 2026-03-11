@@ -2,29 +2,47 @@
 // TAXIMOTO - CÓDIGO UNIFICADO Y OPTIMIZADO
 // =============================================
 
+// =============================================
+// VERIFICACIÓN DE SUPABASE AL INICIAR
+// =============================================
+console.log('🔍 Verificando Supabase...');
+if (!window.supabase) {
+    console.error('❌ window.supabase no existe');
+} else {
+    console.log('✅ window.supabase existe');
+}
+
 // --- FUNCIONES GLOBALES DE AYUDA ---
 
-// Espera a que Supabase esté listo
+// Esperar a que Supabase esté listo
 window.waitForSupabase = function() {
     return new Promise(resolve => {
-        if (window.supabase) {
+        if (window.supabase && window.supabase.auth) {
             resolve();
             return;
         }
+        
         let attempts = 0;
+        const maxAttempts = 50;
         const interval = setInterval(() => {
-            if (window.supabase || attempts > 50) {
+            attempts++;
+            if (window.supabase && window.supabase.auth) {
                 clearInterval(interval);
+                console.log('✅ Supabase listo después de', attempts, 'intentos');
+                resolve();
+            } else if (attempts >= maxAttempts) {
+                clearInterval(interval);
+                console.error('❌ Supabase no disponible después de', maxAttempts, 'intentos');
+                alert('Error de conexión. Recarga la página.');
                 resolve();
             }
-            attempts++;
         }, 100);
     });
 };
 
 // Obtener usuario actual desde la base de datos
 window.getCurrentUser = async function() {
-    const supabase = window.getSupabase();
+    const supabase = window.getSupabase ? window.getSupabase() : window.supabase;
     if (!supabase) return null;
 
     try {
@@ -50,7 +68,7 @@ window.getCurrentUser = async function() {
 
 // Verificar si hay sesión activa
 window.checkSession = async function() {
-    const supabase = window.getSupabase();
+    const supabase = window.getSupabase ? window.getSupabase() : window.supabase;
     if (!supabase) return null;
     const { data: { session } } = await supabase.auth.getSession();
     return session;
@@ -58,7 +76,7 @@ window.checkSession = async function() {
 
 // Cerrar sesión
 window.logout = async function() {
-    const supabase = window.getSupabase();
+    const supabase = window.getSupabase ? window.getSupabase() : window.supabase;
     if (supabase) {
         await supabase.auth.signOut();
     }
@@ -74,8 +92,11 @@ window.goHome = function() {
 window.registrarUsuario = async function(event) {
     event.preventDefault();
 
-    const supabase = window.getSupabase();
-    if (!supabase) return;
+    const supabase = window.getSupabase ? window.getSupabase() : window.supabase;
+    if (!supabase) {
+        alert('Error de conexión. Intenta de nuevo.');
+        return;
+    }
 
     // Obtener valores del formulario
     const nombre = document.getElementById('nombre')?.value?.trim();
@@ -94,33 +115,41 @@ window.registrarUsuario = async function(event) {
     }
 
     try {
+        console.log('📝 Registrando usuario...');
+        
         // 1. Crear usuario en Supabase Auth
-        const email = `${telefono}@temp.taximoto.com`; // Usamos el teléfono como email
+        const email = `${telefono}@temp.taximoto.com`;
         const { data: authData, error: authError } = await supabase.auth.signUp({
             email: email,
             password: password,
             options: {
-                data: { nombre: nombre, telefono: telefono } // Metadata opcional
+                data: { 
+                    nombre: nombre, 
+                    telefono: telefono 
+                }
             }
         });
 
         if (authError) throw new Error(authError.message);
         if (!authData?.user) throw new Error('No se pudo crear el usuario');
 
-        // 2. Guardar perfil en la tabla 'usuarios' (SIN URLS DE IMAGEN)
+        console.log('✅ Usuario creado en Auth:', authData.user.id);
+
+        // 2. Guardar perfil en la tabla 'usuarios'
         const { error: dbError } = await supabase
             .from('usuarios')
             .insert({
                 auth_id: authData.user.id,
                 nombre: nombre,
                 telefono: telefono,
-                cedula: cedula,          // <-- AHORA ES TEXTO
-                rol: 'usuario',           // <-- SIEMPRE 'usuario' al registrarse
-                activo: true               // <-- LOS USUARIOS NORMALES SE ACTIVAN SOLOS
+                cedula: cedula,
+                rol: 'usuario',
+                activo: true
             });
 
         if (dbError) {
-            // Si falla al guardar el perfil, intentamos eliminar el usuario de Auth
+            console.error('Error en DB:', dbError);
+            // Intentar eliminar el usuario de Auth
             await supabase.auth.admin.deleteUser(authData.user.id).catch(() => {});
             throw dbError;
         }
@@ -131,7 +160,7 @@ window.registrarUsuario = async function(event) {
 
     } catch (error) {
         console.error('❌ Error en registro:', error);
-        alert('Error: ' + (error.message || 'Error desconocido'));
+        alert('Error: ' + (error.message || 'Error desconocido. Verifica que las tablas existan en Supabase.'));
     }
 };
 
@@ -139,8 +168,11 @@ window.registrarUsuario = async function(event) {
 window.login = async function(event) {
     event.preventDefault();
 
-    const supabase = window.getSupabase();
-    if (!supabase) return;
+    const supabase = window.getSupabase ? window.getSupabase() : window.supabase;
+    if (!supabase) {
+        alert('Error de conexión');
+        return;
+    }
 
     const telefono = document.getElementById('telefono')?.value?.trim();
     const password = document.getElementById('password')?.value;
@@ -152,7 +184,6 @@ window.login = async function(event) {
     }
 
     try {
-        // El email en Auth se creó con el formato "telefono@temp.taximoto.com"
         const email = `${telefono}@temp.taximoto.com`;
         const { data, error } = await supabase.auth.signInWithPassword({
             email: email,
@@ -170,7 +201,7 @@ window.login = async function(event) {
             localStorage.setItem('taximoto_phone', telefono);
         }
 
-        // Obtener datos completos del usuario desde la tabla 'usuarios'
+        // Obtener datos del usuario
         const { data: usuario, error: userError } = await supabase
             .from('usuarios')
             .select('*')
@@ -178,30 +209,28 @@ window.login = async function(event) {
             .single();
 
         if (userError) {
-            console.error('Error obteniendo datos del usuario:', userError);
+            console.error('Error obteniendo usuario:', userError);
             await supabase.auth.signOut();
             alert('Error al cargar tu perfil. Contacta al administrador.');
             return;
         }
 
-        // --- REDIRECCIÓN SEGURA BASADA EN EL ROL Y ESTADO ---
+        // Redirección según rol
         if (usuario.rol === 'admin') {
             window.location.href = 'admin/dashboard.html';
             return;
         }
 
-        // Para conductores (taxi/mototaxi), verificar si están activos
         if (usuario.rol === 'taxi' || usuario.rol === 'mototaxi') {
             if (!usuario.activo) {
                 alert('⏳ Tu cuenta de conductor está pendiente de activación.\n\nContacta al administrador: 0412-5278450');
-                await supabase.auth.signOut(); // Cerramos sesión si no está activo
+                await supabase.auth.signOut();
                 return;
             }
             window.location.href = 'conductor-dashboard.html';
             return;
         }
 
-        // Para usuarios normales (siempre activos)
         window.location.href = 'request.html';
 
     } catch (error) {
@@ -210,11 +239,11 @@ window.login = async function(event) {
     }
 };
 
-// --- FUNCIONES PARA SOLICITUDES DE VIAJE (Usuario) ---
+// --- FUNCIONES PARA SOLICITUDES DE VIAJE ---
 window.solicitarViaje = async function(event) {
     event.preventDefault();
 
-    const supabase = window.getSupabase();
+    const supabase = window.getSupabase ? window.getSupabase() : window.supabase;
     if (!supabase) return;
 
     const tipo = document.getElementById('tipo')?.value;
@@ -266,9 +295,9 @@ window.solicitarViaje = async function(event) {
     }
 };
 
-// --- ESCUCHAR ACEPTACIÓN DE VIAJE (Usuario) ---
+// Escuchar aceptación de viaje
 window.escucharAceptacionViaje = function(viajeId) {
-    const supabase = window.getSupabase();
+    const supabase = window.getSupabase ? window.getSupabase() : window.supabase;
     if (!supabase) return;
 
     const channel = supabase
@@ -310,9 +339,9 @@ window.escucharAceptacionViaje = function(viajeId) {
         .subscribe();
 };
 
-// --- ACEPTAR VIAJE (Conductor) ---
+// Aceptar viaje (Conductor)
 window.aceptarViaje = async function(viajeId) {
-    const supabase = window.getSupabase();
+    const supabase = window.getSupabase ? window.getSupabase() : window.supabase;
     if (!supabase) return;
 
     try {
@@ -328,7 +357,11 @@ window.aceptarViaje = async function(viajeId) {
 
         const { error } = await supabase
             .from('viajes')
-            .update({ conductor_id: usuario.id, estado: 'aceptado', aceptado_en: new Date().toISOString() })
+            .update({ 
+                conductor_id: usuario.id, 
+                estado: 'aceptado', 
+                aceptado_en: new Date().toISOString() 
+            })
             .eq('id', viajeId)
             .eq('estado', 'solicitado');
 
@@ -344,15 +377,18 @@ window.aceptarViaje = async function(viajeId) {
     }
 };
 
-// --- FINALIZAR VIAJE (Usuario) ---
+// Finalizar viaje
 window.finalizarViaje = async function(viajeId) {
-    const supabase = window.getSupabase();
+    const supabase = window.getSupabase ? window.getSupabase() : window.supabase;
     if (!supabase) return;
 
     try {
         const { error } = await supabase
             .from('viajes')
-            .update({ estado: 'finalizado', finalizado_en: new Date().toISOString() })
+            .update({ 
+                estado: 'finalizado', 
+                finalizado_en: new Date().toISOString() 
+            })
             .eq('id', viajeId);
 
         if (error) throw error;
@@ -364,7 +400,7 @@ window.finalizarViaje = async function(viajeId) {
     }
 };
 
-// --- MOSTRAR CALIFICACIÓN ---
+// Mostrar calificación
 window.mostrarCalificacion = function(viajeId) {
     const container = document.getElementById('calificacion-container');
     if (!container) return;
@@ -394,10 +430,11 @@ window.mostrarCalificacion = function(viajeId) {
     });
 };
 
-// --- ENVIAR CALIFICACIÓN ---
+// Enviar calificación
 window.enviarCalificacion = async function(viajeId) {
-    const supabase = window.getSupabase();
+    const supabase = window.getSupabase ? window.getSupabase() : window.supabase;
     if (!supabase) return;
+    
     if (!window.calificacionSeleccionada) {
         alert('Selecciona una calificación');
         return;
@@ -416,7 +453,12 @@ window.enviarCalificacion = async function(viajeId) {
 
         const { error } = await supabase
             .from('calificaciones')
-            .insert({ viaje_id: viajeId, conductor_id: viaje.conductor_id, usuario_id: usuario.id, calificacion: window.calificacionSeleccionada });
+            .insert({ 
+                viaje_id: viajeId, 
+                conductor_id: viaje.conductor_id, 
+                usuario_id: usuario.id, 
+                calificacion: window.calificacionSeleccionada 
+            });
 
         if (error) throw error;
 
@@ -430,7 +472,7 @@ window.enviarCalificacion = async function(viajeId) {
     }
 };
 
-// --- FUNCIONES PARA EL DASHBOARD DEL CONDUCTOR ---
+// --- FUNCIONES PARA CONDUCTOR DASHBOARD ---
 window.initConductorDashboard = async function() {
     console.log('🚗 Inicializando dashboard conductor');
     const usuario = await window.getCurrentUser();
@@ -444,7 +486,7 @@ window.initConductorDashboard = async function() {
 };
 
 window.escucharSolicitudes = function() {
-    const supabase = window.getSupabase();
+    const supabase = window.getSupabase ? window.getSupabase() : window.supabase;
     if (!supabase) return;
 
     supabase
@@ -459,10 +501,11 @@ window.escucharSolicitudes = function() {
 window.mostrarNuevaSolicitud = function(viaje) {
     const container = document.getElementById('solicitudes-container');
     if (!container) return;
+    
     const icono = viaje.tipo_vehiculo === 'taxi' ? '🚕' : '🛵';
     const tipoTexto = viaje.tipo_vehiculo === 'taxi' ? 'Taxi' : 'Mototaxi';
 
-    container.innerHTML = `
+    const solicitudHTML = `
         <div class="card" id="viaje-${viaje.id}">
             <h3>${icono} Solicitud de ${tipoTexto}</h3>
             <p><strong>📍 Origen:</strong> ${viaje.origen}</p>
@@ -470,12 +513,15 @@ window.mostrarNuevaSolicitud = function(viaje) {
             <p><small>${new Date(viaje.creado_en).toLocaleTimeString()}</small></p>
             <button onclick="window.aceptarViaje('${viaje.id}')" class="btn btn-primary">✅ Aceptar viaje</button>
         </div>
-    ` + container.innerHTML; // Agrega la nueva al principio
+    `;
+    
+    container.innerHTML = solicitudHTML + container.innerHTML;
 };
 
 window.cargarViajesConductor = async function() {
-    const supabase = window.getSupabase();
+    const supabase = window.getSupabase ? window.getSupabase() : window.supabase;
     if (!supabase) return;
+    
     try {
         const usuario = await window.getCurrentUser();
         if (!usuario) return;
@@ -491,7 +537,8 @@ window.cargarViajesConductor = async function() {
 
         const container = document.getElementById('historial-container');
         if (!container) return;
-        container.innerHTML = ''; // Limpiar
+        
+        container.innerHTML = '';
 
         if (viajes.length === 0) {
             container.innerHTML = '<p>No hay viajes realizados</p>';
@@ -503,7 +550,10 @@ window.cargarViajesConductor = async function() {
             const estado = viaje.estado === 'finalizado' ? '✅ Completado' : '⏳ ' + viaje.estado;
             container.innerHTML += `
                 <div class="card">
-                    <div style="display: flex; justify-content: space-between;"><span>${fecha}</span><span>${estado}</span></div>
+                    <div style="display: flex; justify-content: space-between;">
+                        <span>${fecha}</span>
+                        <span>${estado}</span>
+                    </div>
                     <p><strong>Cliente:</strong> ${viaje.usuarios?.nombre}</p>
                     <p><strong>Origen:</strong> ${viaje.origen}</p>
                     <p><strong>Destino:</strong> ${viaje.destino}</p>
@@ -515,51 +565,64 @@ window.cargarViajesConductor = async function() {
     }
 };
 
-// --- FUNCIONES PARA EL DASHBOARD DE ADMIN (SIMPLIFICADAS Y SEGURAS) ---
+// --- FUNCIONES PARA ADMIN DASHBOARD ---
 window.initAdminDashboard = async function() {
     console.log('👑 Inicializando dashboard admin');
-    const supabase = window.getSupabase();
+    const supabase = window.getSupabase ? window.getSupabase() : window.supabase;
     if (!supabase) return;
 
-    // 1. Verificar que el usuario es ADMIN (por teléfono)
     const usuario = await window.getCurrentUser();
-    if (!usuario || usuario.telefono !== '04125278450') { // <-- TU NÚMERO
+    if (!usuario || usuario.telefono !== '04125278450') {
         alert('⛔ Acceso denegado. Solo el administrador puede entrar aquí.');
         window.location.href = '../index.html';
         return;
     }
 
-    // 2. Cargar datos
     await window.cargarEstadisticasAdmin();
     await window.cargarPendientesAdmin();
     await window.cargarListadosAdmin();
 };
 
 window.cargarEstadisticasAdmin = async function() {
-    const supabase = window.getSupabase();
+    const supabase = window.getSupabase ? window.getSupabase() : window.supabase;
     if (!supabase) return;
+    
     try {
-        const { count: usuarios } = await supabase.from('usuarios').select('*', { count: 'exact', head: true }).eq('rol', 'usuario');
-        const { count: conductores } = await supabase.from('usuarios').select('*', { count: 'exact', head: true }).in('rol', ['taxi', 'mototaxi']);
-        const { count: viajes } = await supabase.from('viajes').select('*', { count: 'exact', head: true });
+        const { count: usuarios } = await supabase
+            .from('usuarios')
+            .select('*', { count: 'exact', head: true })
+            .eq('rol', 'usuario');
+            
+        const { count: conductores } = await supabase
+            .from('usuarios')
+            .select('*', { count: 'exact', head: true })
+            .in('rol', ['taxi', 'mototaxi']);
+            
+        const { count: viajes } = await supabase
+            .from('viajes')
+            .select('*', { count: 'exact', head: true });
 
         document.getElementById('total-usuarios').textContent = usuarios || 0;
         document.getElementById('total-conductores').textContent = conductores || 0;
         document.getElementById('total-viajes').textContent = viajes || 0;
-    } catch (error) { console.error('Error estadísticas:', error); }
+    } catch (error) { 
+        console.error('Error estadísticas:', error); 
+    }
 };
 
 window.cargarPendientesAdmin = async function() {
-    const supabase = window.getSupabase();
+    const supabase = window.getSupabase ? window.getSupabase() : window.supabase;
     if (!supabase) return;
+    
     try {
         const { data: pendientes, error } = await supabase
             .from('usuarios')
             .select('*')
             .eq('activo', false)
-            .in('rol', ['taxi', 'mototaxi']); // Solo conductores
+            .in('rol', ['taxi', 'mototaxi']);
 
         if (error) throw error;
+        
         const container = document.getElementById('pendientes-container');
         if (!container) return;
 
@@ -580,54 +643,94 @@ window.cargarPendientesAdmin = async function() {
                 </div>
             </div>
         `).join('');
-    } catch (error) { console.error('Error pendientes:', error); }
+    } catch (error) { 
+        console.error('Error pendientes:', error); 
+    }
 };
 
 window.activarUsuario = async function(userId) {
     if (!confirm('¿Activar este conductor?')) return;
-    const supabase = window.getSupabase();
+    
+    const supabase = window.getSupabase ? window.getSupabase() : window.supabase;
     if (!supabase) return;
+    
     try {
-        const { error } = await supabase.from('usuarios').update({ activo: true }).eq('id', userId);
+        const { error } = await supabase
+            .from('usuarios')
+            .update({ activo: true })
+            .eq('id', userId);
+            
         if (error) throw error;
+        
         alert('✅ Conductor activado');
         document.getElementById(`pendiente-${userId}`)?.remove();
         window.cargarEstadisticasAdmin();
-    } catch (error) { alert('Error: ' + error.message); }
+    } catch (error) { 
+        alert('Error: ' + error.message); 
+    }
 };
 
 window.rechazarUsuario = async function(userId) {
     if (!confirm('¿Rechazar y eliminar este conductor?')) return;
-    const supabase = window.getSupabase();
+    
+    const supabase = window.getSupabase ? window.getSupabase() : window.supabase;
     if (!supabase) return;
+    
     try {
-        const { error } = await supabase.from('usuarios').delete().eq('id', userId);
+        const { error } = await supabase
+            .from('usuarios')
+            .delete()
+            .eq('id', userId);
+            
         if (error) throw error;
+        
         alert('✅ Conductor rechazado');
         document.getElementById(`pendiente-${userId}`)?.remove();
-    } catch (error) { alert('Error: ' + error.message); }
+    } catch (error) { 
+        alert('Error: ' + error.message); 
+    }
 };
 
 window.cargarListadosAdmin = async function() {
-    const supabase = window.getSupabase();
+    const supabase = window.getSupabase ? window.getSupabase() : window.supabase;
     if (!supabase) return;
+    
     try {
         // Usuarios activos
-        const { data: usuarios } = await supabase.from('usuarios').select('*').eq('rol', 'usuario').order('creado_en', { ascending: false });
+        const { data: usuarios } = await supabase
+            .from('usuarios')
+            .select('*')
+            .eq('rol', 'usuario')
+            .order('creado_en', { ascending: false });
+            
         const usuariosContainer = document.getElementById('usuarios-container');
         if (usuariosContainer) {
-            usuariosContainer.innerHTML = usuarios?.map(u => `<div class="card"><h3>${u.nombre}</h3><p>Tel: ${u.telefono}</p></div>`).join('') || '<p>No hay usuarios</p>';
+            usuariosContainer.innerHTML = usuarios?.map(u => 
+                `<div class="card"><h3>${u.nombre}</h3><p>Tel: ${u.telefono}</p></div>`
+            ).join('') || '<p>No hay usuarios</p>';
         }
 
         // Conductores activos
-        const { data: conductores } = await supabase.from('usuarios').select('*').in('rol', ['taxi', 'mototaxi']).eq('activo', true);
+        const { data: conductores } = await supabase
+            .from('usuarios')
+            .select('*')
+            .in('rol', ['taxi', 'mototaxi'])
+            .eq('activo', true);
+            
         const conductoresContainer = document.getElementById('conductores-container');
         if (conductoresContainer) {
-            conductoresContainer.innerHTML = conductores?.map(c => `<div class="card"><h3>${c.nombre}</h3><p>${c.rol === 'taxi' ? '🚕 Taxi' : '🛵 Mototaxi'}</p><p>Tel: ${c.telefono}</p></div>`).join('') || '<p>No hay conductores activos</p>';
+            conductoresContainer.innerHTML = conductores?.map(c => 
+                `<div class="card"><h3>${c.nombre}</h3><p>${c.rol === 'taxi' ? '🚕 Taxi' : '🛵 Mototaxi'}</p><p>Tel: ${c.telefono}</p></div>`
+            ).join('') || '<p>No hay conductores activos</p>';
         }
 
         // Viajes recientes
-        const { data: viajes } = await supabase.from('viajes').select('*, usuarios!viajes_usuario_id_fkey(nombre)').order('creado_en', { ascending: false }).limit(20);
+        const { data: viajes } = await supabase
+            .from('viajes')
+            .select('*, usuarios!viajes_usuario_id_fkey(nombre)')
+            .order('creado_en', { ascending: false })
+            .limit(20);
+            
         const viajesContainer = document.getElementById('viajes-container');
         if (viajesContainer) {
             viajesContainer.innerHTML = viajes?.map(v => `
@@ -636,12 +739,15 @@ window.cargarListadosAdmin = async function() {
                     <p><strong>Tipo:</strong> ${v.tipo_vehiculo}</p>
                     <p><strong>Estado:</strong> ${v.estado}</p>
                     <p><strong>Fecha:</strong> ${new Date(v.creado_en).toLocaleString()}</p>
-                </div>`).join('') || '<p>No hay viajes</p>';
+                </div>
+            `).join('') || '<p>No hay viajes</p>';
         }
-    } catch (error) { console.error('Error listados:', error); }
+    } catch (error) { 
+        console.error('Error listados:', error); 
+    }
 };
 
-// --- FUNCIÓN PARA CAMBIAR TABS ---
+// Función para cambiar tabs
 window.showTab = function(tabId, event) {
     if (event) {
         document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
@@ -651,9 +757,11 @@ window.showTab = function(tabId, event) {
     document.getElementById(tabId).style.display = 'block';
 };
 
-// --- INICIALIZACIÓN GLOBAL DE LA APP ---
+// --- INICIALIZACIÓN GLOBAL ---
 document.addEventListener('DOMContentLoaded', async () => {
     console.log('🚀 Iniciando TAXIMOTO...');
+    
+    // Esperar a que Supabase esté listo
     await window.waitForSupabase();
 
     const paginasPublicas = ['index.html', 'login.html', 'register.html'];
@@ -675,7 +783,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (paginaActual === 'admin/dashboard.html') {
         window.initAdminDashboard();
     }
-    // La página request.html se inicializa sola con el event listener del formulario
 
     console.log('✅ App lista');
 });
