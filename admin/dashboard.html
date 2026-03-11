@@ -7,8 +7,7 @@
     <link rel="stylesheet" href="../css/styles.css">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="../supabase/config.js"></script>
-    <script src="../js/auth.js"></script>
-    <script src="../js/app.js"></script>
+    <script src="../js/taximoto.js"></script>
 </head>
 <body>
     <div class="app-header">
@@ -20,31 +19,17 @@
     <div class="container">
         <!-- Estadísticas -->
         <div class="admin-stats">
-            <div class="stat-card">
-                <div class="stat-number" id="total-usuarios">0</div>
-                <div class="stat-label">Usuarios</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-number" id="total-conductores">0</div>
-                <div class="stat-label">Conductores</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-number" id="total-comercios">0</div>
-                <div class="stat-label">Comercios</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-number" id="total-viajes">0</div>
-                <div class="stat-label">Viajes</div>
-            </div>
+            <div class="stat-card"><div class="stat-number" id="total-usuarios">0</div><div class="stat-label">Usuarios</div></div>
+            <div class="stat-card"><div class="stat-number" id="total-conductores">0</div><div class="stat-label">Conductores</div></div>
+            <div class="stat-card"><div class="stat-number" id="total-viajes">0</div><div class="stat-label">Viajes</div></div>
         </div>
         
         <!-- Tabs -->
         <div class="tabs">
-            <button class="tab active" onclick="showTab('pendientes')">Pendientes</button>
-            <button class="tab" onclick="showTab('usuarios')">Usuarios</button>
-            <button class="tab" onclick="showTab('conductores')">Conductores</button>
-            <button class="tab" onclick="showTab('comercios')">Comercios</button>
-            <button class="tab" onclick="showTab('viajes')">Viajes</button>
+            <button class="tab active" onclick="showTab('pendientes', event)">Pendientes</button>
+            <button class="tab" onclick="showTab('usuarios', event)">Usuarios</button>
+            <button class="tab" onclick="showTab('conductores', event)">Conductores</button>
+            <button class="tab" onclick="showTab('viajes', event)">Viajes</button>
         </div>
         
         <!-- Contenido -->
@@ -59,13 +44,8 @@
         </div>
         
         <div id="conductores" class="tab-content" style="display: none;">
-            <h3>Conductores</h3>
+            <h3>Conductores activos</h3>
             <div id="conductores-container"></div>
-        </div>
-        
-        <div id="comercios" class="tab-content" style="display: none;">
-            <h3>Comercios</h3>
-            <div id="comercios-container"></div>
         </div>
         
         <div id="viajes" class="tab-content" style="display: none;">
@@ -77,183 +57,5 @@
             TAXIMOTO solo conecta conductores con usuarios. No se hace responsable por pagos, accidentes, daños o conflictos.
         </div>
     </div>
-    
-    <script>
-        async function cargarDashboardAdmin() {
-            // Cargar conteos
-            const { count: usuarios } = await supabase
-                .from('usuarios')
-                .select('*', { count: 'exact', head: true })
-                .eq('rol', 'usuario');
-                
-            const { count: conductores } = await supabase
-                .from('usuarios')
-                .select('*', { count: 'exact', head: true })
-                .in('rol', ['taxi', 'mototaxi']);
-                
-            const { count: comercios } = await supabase
-                .from('usuarios')
-                .select('*', { count: 'exact', head: true })
-                .eq('rol', 'comercio');
-                
-            const { count: viajes } = await supabase
-                .from('viajes')
-                .select('*', { count: 'exact', head: true });
-            
-            document.getElementById('total-usuarios').textContent = usuarios || 0;
-            document.getElementById('total-conductores').textContent = conductores || 0;
-            document.getElementById('total-comercios').textContent = comercios || 0;
-            document.getElementById('total-viajes').textContent = viajes || 0;
-            
-            // Cargar pendientes
-            const { data: pendientes } = await supabase
-                .from('usuarios')
-                .select('*')
-                .eq('activo', false)
-                .in('rol', ['taxi', 'mototaxi', 'comercio']);
-                
-            const pendientesContainer = document.getElementById('pendientes-container');
-            if (pendientes && pendientes.length > 0) {
-                pendientes.forEach(user => {
-                    pendientesContainer.innerHTML += `
-                        <div class="card">
-                            <h3>${user.nombre}</h3>
-                            <p>Rol: ${user.rol}</p>
-                            <p>Teléfono: ${user.telefono}</p>
-                            <div style="display: flex; gap: 10px;">
-                                <button onclick="activarUsuario('${user.id}')" class="btn btn-primary">Activar</button>
-                                <button onclick="rechazarUsuario('${user.id}')" class="btn btn-secondary">Rechazar</button>
-                            </div>
-                        </div>
-                    `;
-                });
-            } else {
-                pendientesContainer.innerHTML = '<p>No hay pendientes</p>';
-            }
-            
-            // Cargar listados
-            await cargarListados();
-        }
-        
-        async function cargarListados() {
-            // Usuarios
-            const { data: usuarios } = await supabase
-                .from('usuarios')
-                .select('*')
-                .eq('rol', 'usuario')
-                .eq('activo', true);
-                
-            const usuariosContainer = document.getElementById('usuarios-container');
-            if (usuarios) {
-                usuarios.forEach(user => {
-                    usuariosContainer.innerHTML += `
-                        <div class="card">
-                            <h3>${user.nombre}</h3>
-                            <p>Tel: ${user.telefono}</p>
-                            <button onclick="desactivarUsuario('${user.id}')" class="btn btn-secondary">Desactivar</button>
-                        </div>
-                    `;
-                });
-            }
-            
-            // Conductores
-            const { data: conductores } = await supabase
-                .from('usuarios')
-                .select('*, conductores(*)')
-                .in('rol', ['taxi', 'mototaxi'])
-                .eq('activo', true);
-                
-            const conductoresContainer = document.getElementById('conductores-container');
-            if (conductores) {
-                conductores.forEach(user => {
-                    conductoresContainer.innerHTML += `
-                        <div class="card vehicle-card">
-                            <h3>${user.nombre}</h3>
-                            <p>${user.rol === 'taxi' ? '🚕 Taxi' : '🛵 Mototaxi'}</p>
-                            <p>Vehículo: ${user.conductores?.modelo} ${user.conductores?.color}</p>
-                            <p>Placa: ${user.conductores?.placa}</p>
-                            <p>Calificación: ${user.conductores?.calificacion_promedio || 0} ★</p>
-                            <button onclick="desactivarUsuario('${user.id}')" class="btn btn-secondary">Desactivar</button>
-                        </div>
-                    `;
-                });
-            }
-            
-            // Viajes
-            const { data: viajes } = await supabase
-                .from('viajes')
-                .select('*, usuarios(nombre)')
-                .order('created_at', { ascending: false })
-                .limit(20);
-                
-            const viajesContainer = document.getElementById('viajes-container');
-            if (viajes) {
-                viajes.forEach(viaje => {
-                    viajesContainer.innerHTML += `
-                        <div class="card">
-                            <p><strong>Usuario:</strong> ${viaje.usuarios?.nombre}</p>
-                            <p><strong>Tipo:</strong> ${viaje.tipo_vehiculo}</p>
-                            <p><strong>Origen:</strong> ${viaje.origen}</p>
-                            <p><strong>Destino:</strong> ${viaje.destino}</p>
-                            <p><strong>Estado:</strong> ${viaje.estado}</p>
-                            <p><strong>Fecha:</strong> ${new Date(viaje.created_at).toLocaleString()}</p>
-                        </div>
-                    `;
-                });
-            }
-        }
-        
-        window.activarUsuario = async function(userId) {
-            if (confirm('¿Activar este usuario?')) {
-                const { error } = await supabase
-                    .from('usuarios')
-                    .update({ activo: true })
-                    .eq('id', userId);
-                    
-                if (!error) {
-                    alert('Usuario activado');
-                    window.location.reload();
-                }
-            }
-        };
-        
-        window.desactivarUsuario = async function(userId) {
-            if (confirm('¿Desactivar este usuario?')) {
-                const { error } = await supabase
-                    .from('usuarios')
-                    .update({ activo: false })
-                    .eq('id', userId);
-                    
-                if (!error) {
-                    alert('Usuario desactivado');
-                    window.location.reload();
-                }
-            }
-        };
-        
-        window.rechazarUsuario = async function(userId) {
-            if (confirm('¿Rechazar y eliminar este usuario?')) {
-                const { error } = await supabase
-                    .from('usuarios')
-                    .delete()
-                    .eq('id', userId);
-                    
-                if (!error) {
-                    alert('Usuario rechazado');
-                    window.location.reload();
-                }
-            }
-        };
-        
-        function showTab(tab) {
-            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-            event.target.classList.add('active');
-            
-            document.querySelectorAll('.tab-content').forEach(c => c.style.display = 'none');
-            document.getElementById(tab).style.display = 'block';
-        }
-        
-        document.addEventListener('DOMContentLoaded', cargarDashboardAdmin);
-    </script>
 </body>
 </html>
