@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>TAXIMOTO SIMPLE</title>
+</head>
+<body>
+    <h1>Registro Simple</h1>
+    
+    <input type="text" id="nombre" placeholder="Nombre"><br>
+    <input type="text" id="telefono" placeholder="Teléfono"><br>
+    <input type="text" id="cedula" placeholder="Cédula"><br>
+    <input type="password" id="password" placeholder="Contraseña"><br>
+    <button onclick="registrar()">Registrar</button>
+    
+    <div id="resultado"></div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="supabase/config.js"></script>
+    
+    <script>
+        async function registrar() {
+            const nombre = document.getElementById('nombre').value;
+            const telefono = document.getElementById('telefono').value;
+            const cedula = document.getElementById('cedula').value;
+            const password = document.getElementById('password').value;
+            
+            const resultado = document.getElementById('resultado');
+            resultado.innerHTML = 'Registrando...';
+            
+            try {
+                // 1. Crear en Auth
+                const email = telefono + '@temp.com';
+                const { data: authData, error: authError } = await window.supabase.auth.signUp({
+                    email: email,
+                    password: password
+                });
+                
+                if (authError) throw authError;
+                
+                // 2. Guardar en tabla
+                const { error: dbError } = await window.supabase
+                    .from('usuarios')
+                    .insert({
+                        auth_id: authData.user.id,
+                        nombre: nombre,
+                        telefono: telefono,
+                        cedula: cedula,
+                        rol: 'usuario',
+                        activo: true
+                    });
+                
+                if (dbError) throw dbError;
+                
+                resultado.innerHTML = '✅ Registro exitoso';
+                
+            } catch (error) {
+                resultado.innerHTML = '❌ Error: ' + error.message;
+            }
+        }
+    </script>
+</body>
+</html>
