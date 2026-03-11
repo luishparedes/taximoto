@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes, viewport-fit=cover">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes">
     <title>TAXIMOTO - Conecta conductores con la comunidad</title>
     <link rel="stylesheet" href="css/styles.css">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -15,69 +15,38 @@
     </div>
     
     <div class="container">
-        <!-- Botones principales con ESPACIO adecuado -->
-        <div class="card" style="padding: 25px; margin-bottom: 20px;">
-            <h2 style="margin-bottom: 15px;">Bienvenido</h2>
-            <p style="margin-bottom: 20px; color: var(--text-gray);">La forma más rápida y segura de moverte</p>
-            
-            <div style="display: flex; flex-direction: column; gap: 12px;">
-                <a href="login.html" class="btn btn-primary" style="margin: 0;">Iniciar sesión</a>
-                <a href="register.html" class="btn btn-secondary" style="margin: 0;">Registrarse</a>
-            </div>
+        <!-- Indicador de estado (solo visible en desarrollo) -->
+        <div id="status-indicator" style="background: #1c1c1c; padding: 8px; border-radius: 8px; margin-bottom: 15px; font-size: 12px; text-align: center; color: #888;">
+            🔄 Verificando conexión...
         </div>
         
-        <!-- Atajos rápidos MEJORADOS -->
-        <div style="display: flex; flex-direction: column; gap: 12px; margin: 20px 0;">
-            <a href="request.html?type=taxi" class="quick-action-card" style="display: block; text-decoration: none;">
-                <div style="display: flex; align-items: center; gap: 15px;">
+        <div class="card" style="padding: 25px;">
+            <h2 style="margin-bottom: 15px;">Bienvenido</h2>
+            <p style="margin-bottom: 20px; color: #888;">La forma más rápida y segura de moverte</p>
+            
+            <a href="login.html" class="btn btn-primary" style="margin-bottom: 10px;">Iniciar sesión</a>
+            <a href="register.html" class="btn btn-secondary">Registrarse</a>
+        </div>
+        
+        <div style="margin: 20px 0;">
+            <a href="request.html?type=taxi" class="quick-action-card" style="display: block; text-decoration: none; margin-bottom: 10px;">
+                <div style="display: flex; align-items: center; gap: 15px; padding: 15px;">
                     <span style="font-size: 2rem;">🚕</span>
                     <div>
-                        <h3 style="color: var(--accent-green); margin-bottom: 5px;">Taxi</h3>
-                        <p style="color: var(--text-gray);">Viajes rápidos y seguros</p>
+                        <h3 style="color: #00ff9c;">Taxi</h3>
+                        <p style="color: #888;">Viajes rápidos y seguros</p>
                     </div>
                 </div>
             </a>
             
-            <a href="request.html?type=mototaxi" class="quick-action-card" style="display: block; text-decoration: none;">
-                <div style="display: flex; align-items: center; gap: 15px;">
+            <a href="request.html?type=mototaxi" class="quick-action-card" style="display: block; text-decoration: none; margin-bottom: 10px;">
+                <div style="display: flex; align-items: center; gap: 15px; padding: 15px;">
                     <span style="font-size: 2rem;">🛵</span>
                     <div>
-                        <h3 style="color: var(--accent-green); margin-bottom: 5px;">Mototaxi</h3>
-                        <p style="color: var(--text-gray);">Llega más rápido a tu destino</p>
+                        <h3 style="color: #00ff9c;">Mototaxi</h3>
+                        <p style="color: #888;">Llega más rápido</p>
                     </div>
                 </div>
-            </a>
-            
-            <a href="delivery-request.html" class="quick-action-card" style="display: block; text-decoration: none;">
-                <div style="display: flex; align-items: center; gap: 15px;">
-                    <span style="font-size: 2rem;">📦</span>
-                    <div>
-                        <h3 style="color: var(--accent-green); margin-bottom: 5px;">Delivery</h3>
-                        <p style="color: var(--text-gray);">Envíos de comida y productos</p>
-                    </div>
-                </div>
-            </a>
-        </div>
-        
-        <!-- Tarjetas informativas -->
-        <div style="display: flex; flex-direction: column; gap: 12px; margin: 20px 0;">
-            <div class="card">
-                <h3 style="color: var(--accent-green); margin-bottom: 10px;">¿Eres conductor?</h3>
-                <p style="margin-bottom: 15px;">Regístrate y comienza a ganar hoy mismo</p>
-                <a href="register.html?role=conductor" class="btn btn-secondary" style="margin: 0;">Ser conductor</a>
-            </div>
-            
-            <div class="card">
-                <h3 style="color: var(--accent-green); margin-bottom: 10px;">¿Tienes un comercio?</h3>
-                <p style="margin-bottom: 15px;">Ofrece delivery a tus clientes</p>
-                <a href="register.html?role=comercio" class="btn btn-secondary" style="margin: 0;">Registrar comercio</a>
-            </div>
-        </div>
-        
-        <!-- Botón para volver al inicio (siempre visible) -->
-        <div style="text-align: center; margin: 20px 0;">
-            <a href="index.html" style="color: var(--accent-green); text-decoration: none; font-size: 0.9rem;">
-                ← Volver al inicio
             </a>
         </div>
         
@@ -87,13 +56,20 @@
     </div>
 
     <script>
-        // Verificar que supabase está funcionando
-        if (typeof supabase === 'undefined') {
-            console.error('❌ Supabase no se cargó correctamente');
-            alert('Error de configuración. Contacta al administrador.');
-        } else {
-            console.log('✅ Supabase disponible');
-        }
+        // Verificar conexión al cargar la página
+        document.addEventListener('DOMContentLoaded', function() {
+            const indicator = document.getElementById('status-indicator');
+            
+            setTimeout(function() {
+                if (typeof supabase !== 'undefined' && supabase) {
+                    indicator.innerHTML = '✅ Conectado a Supabase';
+                    indicator.style.color = '#00ff9c';
+                } else {
+                    indicator.innerHTML = '❌ Error de conexión - Revisa config.js';
+                    indicator.style.color = '#ff4444';
+                }
+            }, 1000);
+        });
     </script>
 </body>
 </html>
