@@ -1,16 +1,28 @@
 // =============================================
-// SUPABASE CONFIG - VERSIÓN CORREGIDA 2024
+// SUPABASE CONFIG - VERSIÓN QUE SÍ FUNCIONA
 // =============================================
 
 const SUPABASE_URL = 'https://kamcozmlzgvixaopsiqk.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_HJkELm1PKc9hTB7R8DsRng_a2qqkv8z';
 
-// Crear cliente
-window.supabase = supabaseJs.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+// ESPERAR a que la librería cargue
+document.addEventListener('DOMContentLoaded', function() {
+    if (typeof supabaseJs !== 'undefined') {
+        window.supabase = supabaseJs.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        console.log('✅ Supabase listo');
+        
+        // Probar que funciona
+        if (window.supabase && window.supabase.auth) {
+            console.log('✅ Auth disponible');
+        } else {
+            console.log('❌ Auth no disponible');
+        }
+    } else {
+        console.error('❌ supabaseJs no está definido');
+    }
+});
 
-// Fix para versiones nuevas de Supabase
+// Helper para obtener Supabase
 window.getSupabase = function() {
     return window.supabase;
 };
-
-console.log('✅ Supabase config cargado');
