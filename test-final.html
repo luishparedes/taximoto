@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>TEST FINAL</title>
+</head>
+<body>
+    <h1>TEST TAXIMOTO</h1>
+    <div id="status">Cargando...</div>
+    
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="supabase/config.js"></script>
+    
+    <script>
+        setTimeout(() => {
+            const div = document.getElementById('status');
+            
+            if (window.supabase) {
+                div.innerHTML = '✅ window.supabase OK<br>';
+                
+                if (window.supabase.auth) {
+                    div.innerHTML += '✅ window.supabase.auth OK<br>';
+                    div.innerHTML += '🎉 TODO FUNCIONA';
+                } else {
+                    div.innerHTML += '❌ window.supabase.auth = undefined<br>';
+                    div.innerHTML += '🔧 ERROR: La versión de Supabase puede ser vieja';
+                }
+            } else {
+                div.innerHTML = '❌ window.supabase = undefined';
+            }
+        }, 2000);
+    </script>
+</body>
+</html>
