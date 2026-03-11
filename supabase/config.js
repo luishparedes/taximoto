@@ -1,56 +1,37 @@
 // =============================================
-// CONFIGURACIÓN DE SUPABASE - CORREGIDA
+// CONFIGURACIÓN DE SUPABASE - VERSIÓN ESTABLE
 // =============================================
 
 const SUPABASE_URL = 'https://kamcozmlzgvixaopsiqk.supabase.co';
-const SUPABASE_ANON_KEY = 'sb_publishable_HJkELm1PKc9hTB7R8DsRng_a2qqkv8z'; // ESTA DEBE SER LA ANON KEY REAL
+const SUPABASE_ANON_KEY = 'sb_publishable_HJkELm1PKc9hTB7R8DsRng_a2qqkv8z';
 
-// Inicialización segura
+// Inicialización INMEDIATA y FORZADA
 (function() {
-    // Esperar a que el SDK esté disponible
-    function initSupabase() {
-        if (typeof supabaseJs !== 'undefined') {
-            window.supabase = supabaseJs.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-                auth: {
-                    autoRefreshToken: true,
-                    persistSession: true,
-                    detectSessionInUrl: true
-                },
-                realtime: {
-                    params: {
-                        eventsPerSecond: 10
-                    }
-                }
-            });
-            console.log('✅ Supabase inicializado correctamente');
-            window.dispatchEvent(new Event('supabase-ready'));
-            return true;
-        }
-        return false;
-    }
-
-    // Intentar inicializar inmediatamente
-    if (!initSupabase()) {
-        // Si no está listo, esperar a que cargue el script
-        window.addEventListener('load', function() {
-            if (!window.supabase) {
-                initSupabase();
+    // 1. Crear cliente inmediatamente
+    if (typeof supabaseJs !== 'undefined') {
+        window.supabase = supabaseJs.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+            auth: {
+                autoRefreshToken: true,
+                persistSession: true,
+                detectSessionInUrl: true
             }
         });
+        console.log('✅ Supabase listo');
+        window.dispatchEvent(new Event('supabase-ready'));
+        return;
     }
-
-    // Fallback: verificar cada 100ms por 3 segundos
-    let attempts = 0;
-    const interval = setInterval(function() {
-        if (window.supabase || attempts > 30) {
-            clearInterval(interval);
-            return;
-        }
+    
+    // 2. Si el SDK no cargó, esperar
+    window.addEventListener('load', function() {
         if (typeof supabaseJs !== 'undefined' && !window.supabase) {
             window.supabase = supabaseJs.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-            console.log('✅ Supabase inicializado (delay)');
+            console.log('✅ Supabase listo (load)');
             window.dispatchEvent(new Event('supabase-ready'));
         }
-        attempts++;
-    }, 100);
+    });
 })();
+
+// 3. EXPORTACIÓN GLOBAL (MUY IMPORTANTE)
+window.getSupabase = function() {
+    return window.supabase;
+};

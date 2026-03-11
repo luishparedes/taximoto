@@ -17,9 +17,17 @@ function getSupabase() {
 window.registrarUsuario = async function(event) {
     event.preventDefault();
     
-    const supabase = getSupabase();
-    if (!supabase) {
-        alert('Error de conexión. Recarga la página.');
+    // ESPERAR a que Supabase esté listo (NUEVO)
+    let attempts = 0;
+    while (!window.supabase?.auth && attempts < 50) {
+        await new Promise(r => setTimeout(r, 100));
+        attempts++;
+    }
+    
+    const supabase = window.getSupabase ? window.getSupabase() : window.supabase;
+    if (!supabase || !supabase.auth) {
+        alert('⏳ Error de conexión. Intenta de nuevo en 2 segundos.');
+        console.error('❌ Supabase no disponible');
         return;
     }
     
@@ -41,24 +49,13 @@ window.registrarUsuario = async function(event) {
         return;
     }
     
-    if (!/^[0-9]{10,}$/.test(telefono)) {
-        alert('Teléfono inválido (mínimo 10 dígitos)');
-        return;
-    }
-    
     if (!fotoFile || !cedulaFile) {
         alert('Debes subir tu foto y cédula');
         return;
     }
     
-    // Validar tamaño de archivos (máx 2MB)
-    if (fotoFile.size > 2 * 1024 * 1024 || cedulaFile.size > 2 * 1024 * 1024) {
-        alert('Las imágenes no deben superar los 2MB');
-        return;
-    }
-    
     try {
-        console.log('📝 Iniciando registro...');
+        console.log('📝 Registrando...');
         
         // 1. Crear usuario en Auth
         const email = `${telefono}@temp.taximoto.com`;
@@ -77,33 +74,41 @@ window.registrarUsuario = async function(event) {
         if (authError) throw new Error(authError.message);
         if (!authData?.user) throw new Error('No se pudo crear el usuario');
         
-        console.log('✅ Usuario creado en Auth:', authData.user.id);
+        console.log('✅ Usuario creado en Auth');
         
         // 2. Subir archivos
         const timestamp = Date.now();
         const userId = authData.user.id;
         
         // Subir foto
-        const fotoPath = `usuarios/${userId}/foto_${timestamp}.jpg`;
-        const { error: fotoError } = await supabase.storage
-            .from('fotos')
-            .upload(fotoPath, fotoFile, { cacheControl: '3600' });
-            
-        if (fotoError) console.warn('⚠️ Error subiendo foto:', fotoError);
+        let fotoUrl = null;
+        try {
+            const fotoPath = `usuarios/${userId}/foto_${timestamp}.jpg`;
+            const { error: fotoError } = await supabase.storage
+                .from('fotos')
+                .upload(fotoPath, fotoFile);
+            if (!fotoError) {
+                fotoUrl = supabase.storage.from('fotos').getPublicUrl(fotoPath).data.publicUrl;
+            }
+        } catch (e) {
+            console.warn('Foto no subida:', e);
+        }
         
         // Subir cédula
-        const cedulaPath = `usuarios/${userId}/cedula_${timestamp}.jpg`;
-        const { error: cedulaError } = await supabase.storage
-            .from('cedulas')
-            .upload(cedulaPath, cedulaFile, { cacheControl: '3600' });
-            
-        if (cedulaError) console.warn('⚠️ Error subiendo cédula:', cedulaError);
+        let cedulaUrl = null;
+        try {
+            const cedulaPath = `usuarios/${userId}/cedula_${timestamp}.jpg`;
+            const { error: cedulaError } = await supabase.storage
+                .from('cedulas')
+                .upload(cedulaPath, cedulaFile);
+            if (!cedulaError) {
+                cedulaUrl = supabase.storage.from('cedulas').getPublicUrl(cedulaPath).data.publicUrl;
+            }
+        } catch (e) {
+            console.warn('Cédula no subida:', e);
+        }
         
-        // Obtener URLs públicas
-        const fotoUrl = fotoError ? null : supabase.storage.from('fotos').getPublicUrl(fotoPath).data.publicUrl;
-        const cedulaUrl = cedulaError ? null : supabase.storage.from('cedulas').getPublicUrl(cedulaPath).data.publicUrl;
-        
-        // 3. Crear perfil en tabla usuarios
+        // 3. Crear perfil
         const { error: dbError } = await supabase
             .from('usuarios')
             .insert({
@@ -113,23 +118,21 @@ window.registrarUsuario = async function(event) {
                 rol: 'usuario',
                 foto_url: fotoUrl,
                 cedula_url: cedulaUrl,
-                activo: true // Usuarios normales se activan automáticamente
+                activo: true
             });
             
         if (dbError) {
-            // Si falla, intentar limpiar
+            // Limpiar usuario de Auth si falla DB
             await supabase.auth.admin.deleteUser(authData.user.id).catch(() => {});
             throw dbError;
         }
         
-        // Guardar teléfono para recordar
         localStorage.setItem('taximoto_phone', telefono);
-        
-        alert('✅ Registro exitoso. Ya puedes iniciar sesión.');
+        alert('✅ Registro exitoso');
         window.location.href = 'login.html';
         
     } catch (error) {
-        console.error('❌ Error en registro:', error);
+        console.error('❌ Error:', error);
         alert('Error: ' + (error.message || 'Error desconocido'));
     }
 };
