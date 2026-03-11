@@ -6,11 +6,13 @@
 <body>
     <h1>Registro Funcional</h1>
     
-    <input type="text" id="nombre" placeholder="Nombre completo"><br>
-    <input type="text" id="telefono" placeholder="Teléfono"><br>
-    <input type="text" id="cedula" placeholder="Cédula"><br>
-    <input type="password" id="password" placeholder="Contraseña"><br>
-    <button onclick="registrar()">Registrarme</button>
+    <form onsubmit="event.preventDefault(); registrar();">
+        <input type="text" id="nombre" placeholder="Nombre completo" required><br>
+        <input type="text" id="telefono" placeholder="Teléfono" required><br>
+        <input type="text" id="cedula" placeholder="Cédula" required><br>
+        <input type="password" id="password" placeholder="Contraseña" required><br>
+        <button type="submit">Registrarme</button>
+    </form>
     
     <div id="resultado" style="margin-top:20px; padding:10px; border:1px solid #ccc;"></div>
 
@@ -21,10 +23,11 @@
         const SUPABASE_URL = 'https://kamcozmlzgvixaopsiqk.supabase.co';
         const SUPABASE_ANON_KEY = 'sb_publishable_HJkELm1PKc9hTB7R8DsRng_a2qqkv8z';
         
-        // Crear cliente (NOTA: es "supabase.createClient", NO "supabaseJs")
+        // Crear cliente
         const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
         
-        async function registrar() {
+        // Hacer la función disponible globalmente
+        window.registrar = async function() {
             const nombre = document.getElementById('nombre').value;
             const telefono = document.getElementById('telefono').value;
             const cedula = document.getElementById('cedula').value;
@@ -32,7 +35,7 @@
             
             const resultado = document.getElementById('resultado');
             
-            // Validaciones básicas
+            // Validaciones
             if (!nombre || !telefono || !cedula || !password) {
                 resultado.innerHTML = '❌ Todos los campos son obligatorios';
                 return;
@@ -73,11 +76,17 @@
                 
                 resultado.innerHTML = '✅ ¡REGISTRO EXITOSO!<br>Ya puedes iniciar sesión.';
                 
+                // Limpiar formulario
+                document.getElementById('nombre').value = '';
+                document.getElementById('telefono').value = '';
+                document.getElementById('cedula').value = '';
+                document.getElementById('password').value = '';
+                
             } catch (error) {
-                console.error('Error completo:', error);
+                console.error('Error:', error);
                 resultado.innerHTML = '❌ Error: ' + error.message;
             }
-        }
+        };
     </script>
 </body>
 </html>
