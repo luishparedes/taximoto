@@ -10,19 +10,12 @@ package-lock.json
 # Archivos de sistema
 .DS_Store
 Thumbs.db
+*.log
 
 # IDE
 .vscode/
 .idea/
 
-# Logs
-*.log
-npm-debug.log*
-
 # Archivos de build
 dist/
 build/
-
-# Archivos temporales
-*.tmp
-*.temp

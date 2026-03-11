@@ -6,7 +6,6 @@
     <title>TAXIMOTO - Registro</title>
     <link rel="stylesheet" href="css/styles.css">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="https://www.google.com/recaptcha/api.js" async defer></script>
     <script src="supabase/config.js"></script>
     <script src="js/auth.js"></script>
 </head>
@@ -14,18 +13,21 @@
     <div class="app-header">
         <h1>🚖 TAXIMOTO</h1>
         <p>Registro</p>
+        <button onclick="goHome()" class="btn btn-small btn-secondary" style="margin-top: 10px;">← Volver</button>
     </div>
     
     <div class="container">
+        <!-- Tabs de registro -->
         <div class="tabs">
-            <button class="tab active" onclick="showTab('usuario')">👤 Usuario</button>
-            <button class="tab" onclick="showTab('taxi')">🚕 Taxi</button>
-            <button class="tab" onclick="showTab('mototaxi')">🛵 Mototaxi</button>
-            <button class="tab" onclick="showTab('comercio')">🏪 Comercio</button>
+            <button class="tab active" onclick="showTab('usuario', event)">👤 Usuario</button>
+            <button class="tab" onclick="showTab('taxi', event)">🚕 Taxi</button>
+            <button class="tab" onclick="showTab('mototaxi', event)">🛵 Mototaxi</button>
+            <button class="tab" onclick="showTab('comercio', event)">🏪 Comercio</button>
         </div>
         
-        <!-- Registro Usuario -->
+        <!-- Formulario Usuario -->
         <div id="form-usuario" class="card" style="display: block;">
+            <h3>Registro de Usuario</h3>
             <form onsubmit="registrarUsuario(event)">
                 <div class="form-group">
                     <label>👤 Nombre completo</label>
@@ -34,47 +36,47 @@
                 
                 <div class="form-group">
                     <label>📱 Teléfono</label>
-                    <input type="tel" id="telefono" required placeholder="04121234567" inputmode="numeric">
+                    <input type="tel" id="telefono" required 
+                           placeholder="04121234567" 
+                           inputmode="numeric"
+                           pattern="[0-9]{10,}">
                 </div>
                 
                 <div class="form-group">
-                    <label>🔒 Contraseña</label>
+                    <label>🔒 Contraseña (mínimo 6 caracteres)</label>
                     <div class="password-container">
-                        <input type="password" id="password" required placeholder="Mínimo 6 caracteres" minlength="6">
+                        <input type="password" id="password" required minlength="6" placeholder="••••••">
                         <span class="password-toggle" onclick="togglePassword('password')">👁️</span>
                     </div>
                 </div>
                 
                 <div class="form-group">
-                    <label>📸 Foto de perfil</label>
+                    <label>📸 Foto de perfil (máx 2MB)</label>
                     <input type="file" id="foto" accept="image/*" required>
                 </div>
                 
                 <div class="form-group">
-                    <label>🆔 Cédula de identidad</label>
+                    <label>🆔 Cédula de identidad (máx 2MB)</label>
                     <input type="file" id="cedula" accept="image/*" required>
                 </div>
                 
-                <!-- reCAPTCHA -->
-                <div class="g-recaptcha" data-sitekey="6Lc3S4YsAAAAAB8xiQm1nMzFGAnFKD_kaBVSshBK"></div>
-                
-                <!-- Términos y condiciones -->
                 <div class="terms-checkbox">
                     <input type="checkbox" id="terms" required>
-                    <label for="terms">Acepto los <a href="#" onclick="showTerms()">términos y condiciones</a> y el <a href="#" onclick="showPrivacy()">aviso de privacidad</a></label>
+                    <label for="terms">Acepto los <a href="#" onclick="showTerms()">términos y condiciones</a></label>
                 </div>
                 
-                <button type="submit" class="btn btn-primary">Registrarme</button>
+                <button type="submit" class="btn btn-primary btn-large">Registrarme</button>
             </form>
         </div>
         
-        <!-- Registro Conductor -->
+        <!-- Formulario Conductor -->
         <div id="form-conductor" class="card" style="display: none;">
+            <h3>Registro de Conductor</h3>
             <form onsubmit="registrarConductor(event)">
                 <input type="hidden" id="tipo" value="taxi">
                 
                 <div class="form-group">
-                    <label>Tipo</label>
+                    <label>Tipo de vehículo</label>
                     <select id="tipo-select" onchange="document.getElementById('tipo').value=this.value">
                         <option value="taxi">🚕 Taxi</option>
                         <option value="mototaxi">🛵 Mototaxi</option>
@@ -103,7 +105,7 @@
                 
                 <div class="form-group">
                     <label>🚘 Placa</label>
-                    <input type="text" id="placa" required placeholder="ABC123">
+                    <input type="text" id="placa" required placeholder="ABC123" style="text-transform: uppercase;">
                 </div>
                 
                 <div class="form-group">
@@ -133,21 +135,22 @@
                     <input type="file" id="licencia" accept="image/*" required>
                 </div>
                 
-                <!-- reCAPTCHA -->
-                <div class="g-recaptcha" data-sitekey="6Lc3S4YsAAAAAB8xiQm1nMzFGAnFKD_kaBVSshBK"></div>
-                
-                <!-- Términos -->
                 <div class="terms-checkbox">
                     <input type="checkbox" id="terms-conductor" required>
                     <label for="terms-conductor">Acepto los <a href="#" onclick="showTerms()">términos y condiciones</a></label>
                 </div>
                 
-                <button type="submit" class="btn btn-primary">Registrarme como conductor</button>
+                <div class="legal-notice" style="margin: 10px 0; background: transparent; border-color: var(--accent-green);">
+                    ⚠️ Tu cuenta será activada manualmente por el administrador
+                </div>
+                
+                <button type="submit" class="btn btn-primary btn-large">Registrarme como conductor</button>
             </form>
         </div>
         
-        <!-- Registro Comercio -->
+        <!-- Formulario Comercio -->
         <div id="form-comercio" class="card" style="display: none;">
+            <h3>Registro de Comercio</h3>
             <form onsubmit="registrarComercio(event)">
                 <div class="form-group">
                     <label>🏪 Nombre del comercio</label>
@@ -182,17 +185,24 @@
                     <input type="file" id="cedula" accept="image/*" required>
                 </div>
                 
-                <!-- reCAPTCHA -->
-                <div class="g-recaptcha" data-sitekey="6Lc3S4YsAAAAAB8xiQm1nMzFGAnFKD_kaBVSshBK"></div>
-                
-                <!-- Términos -->
                 <div class="terms-checkbox">
                     <input type="checkbox" id="terms-comercio" required>
                     <label for="terms-comercio">Acepto los <a href="#" onclick="showTerms()">términos y condiciones</a></label>
                 </div>
                 
-                <button type="submit" class="btn btn-primary">Registrar comercio</button>
+                <div class="legal-notice" style="margin: 10px 0; background: transparent; border-color: var(--accent-green);">
+                    ⚠️ Tu cuenta será activada manualmente por el administrador
+                </div>
+                
+                <button type="submit" class="btn btn-primary btn-large">Registrar comercio</button>
             </form>
+        </div>
+        
+        <!-- Información de contacto admin -->
+        <div class="card" style="text-align: center; background-color: var(--bg-secondary);">
+            <h3 style="color: var(--accent-green);">📞 Contacto administrador</h3>
+            <p style="font-size: 1.5rem; color: var(--text-white); margin: 10px 0;">0412-5278450</p>
+            <p style="color: var(--text-gray);">Para activación de cuentas de conductores y comercios</p>
         </div>
         
         <div class="legal-notice">
@@ -201,12 +211,12 @@
     </div>
     
     <script>
-        function showTab(tab) {
-            // Quitar active de todos
+        function showTab(tab, event) {
+            // Actualizar tabs
             document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
             event.target.classList.add('active');
             
-            // Ocultar todos
+            // Ocultar todos los formularios
             document.getElementById('form-usuario').style.display = 'none';
             document.getElementById('form-conductor').style.display = 'none';
             document.getElementById('form-comercio').style.display = 'none';
@@ -231,22 +241,28 @@
         }
 
         function showTerms() {
-            alert('TÉRMINOS Y CONDICIONES\n\nAl registrarte en TAXIMOTO aceptas:\n\n1. Proporcionar información veraz\n2. Usar la app de forma responsable\n3. Los conductores son independientes\n4. TAXIMOTO solo conecta, no transporta\n5. Pago semanal: $5 USD');
+            alert('TÉRMINOS Y CONDICIONES\n\n' +
+                  '1. Proporcionar información veraz\n' +
+                  '2. Usar la app de forma responsable\n' +
+                  '3. Los conductores son independientes\n' +
+                  '4. TAXIMOTO solo conecta, no transporta\n' +
+                  '5. Pago semanal: $5 USD\n\n' +
+                  'Al registrarte aceptas estos términos.');
         }
 
-        function showPrivacy() {
-            alert('AVISO DE PRIVACIDAD\n\nTus datos personales (fotos, cédula) se usan solo para verificar tu identidad y no se comparten con terceros sin tu consentimiento.');
+        function goHome() {
+            window.location.href = 'index.html';
         }
 
-        // Cargar tipo si viene por URL
+        // Detectar parámetro en URL
         document.addEventListener('DOMContentLoaded', function() {
             const urlParams = new URLSearchParams(window.location.search);
             const role = urlParams.get('role');
             
             if (role === 'conductor') {
-                showTab('taxi');
+                showTab('taxi', { target: document.querySelectorAll('.tab')[1] });
             } else if (role === 'comercio') {
-                showTab('comercio');
+                showTab('comercio', { target: document.querySelectorAll('.tab')[3] });
             }
         });
     </script>

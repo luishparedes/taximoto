@@ -2,11 +2,13 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes, viewport-fit=cover">
     <title>TAXIMOTO - Conecta conductores con la comunidad</title>
     <link rel="stylesheet" href="css/styles.css">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="supabase/config.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/app.js"></script>
 </head>
 <body>
     <div class="app-header">
@@ -18,10 +20,10 @@
         <!-- Botones principales -->
         <div class="card">
             <h2>Bienvenido</h2>
-            <p>La forma más rápida y segura de moverte</p>
+            <p style="color: var(--text-gray); margin-bottom: 20px;">La forma más rápida y segura de moverte</p>
             
-            <a href="login.html" class="btn btn-primary">Iniciar sesión</a>
-            <a href="register.html" class="btn btn-secondary">Registrarse</a>
+            <a href="login.html" class="btn btn-primary btn-large">Iniciar sesión</a>
+            <a href="register.html" class="btn btn-secondary btn-large">Registrarse</a>
         </div>
         
         <!-- Botones rápidos -->
@@ -42,6 +44,14 @@
             </div>
         </div>
         
+        <!-- Información de contacto admin -->
+        <div class="card" style="text-align: center;">
+            <h3>📞 Contacto administrador</h3>
+            <p style="font-size: 1.3rem; color: var(--accent-green); margin: 10px 0;">0412-5278450</p>
+            <p style="color: var(--text-gray); font-size: 0.9rem;">Para activación de cuentas</p>
+        </div>
+        
+        <!-- Aviso legal -->
         <div class="legal-notice">
             TAXIMOTO solo conecta conductores con usuarios. No se hace responsable por pagos, accidentes, daños o conflictos.
         </div>

@@ -2,96 +2,86 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TAXIMOTO - Configurar Admin</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes, viewport-fit=cover">
+    <title>TAXIMOTO - Panel Conductor</title>
     <link rel="stylesheet" href="css/styles.css">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="supabase/config.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/requests.js"></script>
+    <script src="js/app.js"></script>
 </head>
 <body>
     <div class="app-header">
         <h1>🚖 TAXIMOTO</h1>
-        <p>Configuración de administrador</p>
+        <p>Panel de Conductor</p>
+        <div style="display: flex; gap: 10px; justify-content: center; margin-top: 10px;">
+            <span id="conductor-nombre" style="color: var(--accent-green);"></span>
+            <button onclick="logout()" class="btn btn-small btn-secondary">Salir</button>
+        </div>
     </div>
     
     <div class="container">
+        <!-- Estado de cuenta -->
+        <div id="estado-cuenta" class="card" style="background-color: var(--bg-secondary);">
+            <p id="mensaje-activacion" style="color: var(--text-gray); text-align: center;">
+                Verificando estado de cuenta...
+            </p>
+        </div>
+        
+        <!-- Solicitudes disponibles -->
         <div class="card">
-            <h2>Crear administrador único</h2>
-            <p style="color: var(--accent-green); margin-bottom: 20px;">Email: admin@taximoto.com</p>
-            
-            <form onsubmit="crearAdmin(event)">
-                <div class="form-group">
-                    <label>Nombre del administrador</label>
-                    <input type="text" id="nombre" required value="Administrador">
-                </div>
-                
-                <div class="form-group">
-                    <label>Teléfono</label>
-                    <input type="tel" id="telefono" required placeholder="04121234567">
-                </div>
-                
-                <div class="form-group">
-                    <label>Contraseña</label>
-                    <input type="password" id="password" required minlength="6">
-                </div>
-                
-                <button type="submit" class="btn btn-primary">Crear administrador</button>
-            </form>
-            
-            <div id="mensaje" class="success-message" style="display: none;"></div>
+            <h3>🆕 Solicitudes disponibles</h3>
+            <div id="solicitudes-container">
+                <p class="loading" style="text-align: center;">Esperando solicitudes...</p>
+            </div>
+        </div>
+        
+        <!-- Historial de viajes -->
+        <div class="card">
+            <h3>📋 Historial de viajes</h3>
+            <div id="historial-container">
+                <p class="loading">Cargando historial...</p>
+            </div>
+        </div>
+        
+        <!-- Información de contacto -->
+        <div class="card" style="text-align: center; background-color: var(--bg-secondary);">
+            <h3 style="color: var(--accent-green);">📞 Soporte</h3>
+            <p style="font-size: 1.3rem;">0412-5278450</p>
+            <p style="color: var(--text-gray);">Para cualquier inconveniente</p>
         </div>
         
         <div class="legal-notice">
             TAXIMOTO solo conecta conductores con usuarios. No se hace responsable por pagos, accidentes, daños o conflictos.
         </div>
     </div>
-    
+
     <script>
-        async function crearAdmin(event) {
-            event.preventDefault();
+        // Verificar activación al cargar
+        document.addEventListener('DOMContentLoaded', async function() {
+            const usuario = await window.getCurrentUser();
             
-            const nombre = document.getElementById('nombre').value;
-            const telefono = document.getElementById('telefono').value;
-            const password = document.getElementById('password').value;
-            
-            try {
-                // Crear usuario en Auth
-                const { data: authData, error: authError } = await supabase.auth.signUp({
-                    email: 'admin@taximoto.com',
-                    password: password,
-                    phone: telefono
-                });
-                
-                if (authError) throw authError;
-                
-                // Crear usuario en la tabla
-                const { error: dbError } = await supabase
-                    .from('usuarios')
-                    .insert({
-                        auth_id: authData.user.id,
-                        nombre: nombre,
-                        telefono: telefono,
-                        rol: 'admin',
-                        activo: true
-                    });
+            if (usuario) {
+                if (!usuario.activo) {
+                    // Mostrar mensaje de pendiente
+                    document.getElementById('estado-cuenta').innerHTML = `
+                        <div style="text-align: center;">
+                            <p style="color: #ffaa00; font-size: 1.2rem;">⏳ Cuenta pendiente de activación</p>
+                            <p style="color: var(--text-gray); margin: 10px 0;">Contacta al administrador:</p>
+                            <p style="font-size: 1.5rem; color: var(--accent-green);">0412-5278450</p>
+                        </div>
+                    `;
                     
-                if (dbError) throw dbError;
-                
-                document.getElementById('mensaje').style.display = 'block';
-                document.getElementById('mensaje').textContent = 'Administrador creado exitosamente. Ya puedes iniciar sesión.';
-                document.getElementById('mensaje').className = 'success-message';
-                
-                setTimeout(() => {
-                    window.location.href = 'login.html';
-                }, 3000);
-                
-            } catch (error) {
-                console.error(error);
-                document.getElementById('mensaje').style.display = 'block';
-                document.getElementById('mensaje').textContent = 'Error: ' + error.message;
-                document.getElementById('mensaje').className = 'error-message';
+                    // Ocultar secciones
+                    document.getElementById('solicitudes-container').style.display = 'none';
+                    document.querySelector('.card h3')?.parentElement?.style.display = 'none';
+                } else {
+                    document.getElementById('estado-cuenta').style.display = 'none';
+                    window.initConductorDashboard();
+                }
             }
-        }
+        });
     </script>
 </body>
 </html>

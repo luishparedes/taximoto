@@ -13,39 +13,47 @@
     <div class="app-header">
         <h1>🚖 TAXIMOTO</h1>
         <p>Iniciar sesión</p>
+        <button onclick="goHome()" class="btn btn-small btn-secondary" style="margin-top: 10px;">← Volver</button>
     </div>
     
     <div class="container">
         <div class="card">
-            <form onsubmit="login(event)">
+            <form onsubmit="login(event)" id="login-form">
                 <div class="form-group">
                     <label>📱 Teléfono</label>
-                    <input type="tel" id="telefono" required placeholder="04121234567" inputmode="numeric">
+                    <input type="tel" id="telefono" required 
+                           placeholder="04121234567" 
+                           inputmode="numeric"
+                           pattern="[0-9]{10,}"
+                           title="Mínimo 10 dígitos">
                 </div>
                 
                 <div class="form-group">
                     <label>🔒 Contraseña</label>
                     <div class="password-container">
-                        <input type="password" id="password" required placeholder="Ingresa tu contraseña">
+                        <input type="password" id="password" required 
+                               placeholder="Ingresa tu contraseña"
+                               minlength="6">
                         <span class="password-toggle" onclick="togglePassword('password')">👁️</span>
                     </div>
                 </div>
                 
-                <!-- Checkbox Recordar sesión -->
                 <div class="terms-checkbox">
                     <input type="checkbox" id="remember" checked>
-                    <label for="remember">Mantener sesión iniciada</label>
+                    <label for="remember">Recordar mi teléfono</label>
                 </div>
                 
                 <button type="submit" class="btn btn-primary btn-large">Ingresar</button>
             </form>
             
             <p style="text-align: center; margin: 20px 0;">
-                ¿No tienes cuenta? <a href="register.html" style="color: var(--accent-green);">Regístrate</a>
+                ¿No tienes cuenta? 
+                <a href="register.html" style="color: var(--accent-green); font-weight: 600;">Regístrate</a>
             </p>
             
             <p style="text-align: center;">
-                <a href="#" style="color: var(--text-gray); text-decoration: none; font-size: 0.9rem;" onclick="alert('Contacta al administrador: 04125278450')">
+                <a href="#" style="color: var(--text-gray); text-decoration: none; font-size: 0.9rem;" 
+                   onclick="alert('Contacta al administrador para restablecer tu contraseña:\n📞 04125278450')">
                     ¿Olvidaste tu contraseña?
                 </a>
             </p>
@@ -57,24 +65,18 @@
     </div>
 
     <script>
-        // Función para mostrar/ocultar contraseña
-        function togglePassword(inputId) {
-            const input = document.getElementById(inputId);
-            const type = input.type === 'password' ? 'text' : 'password';
-            input.type = type;
-            
-            // Cambiar el ícono
-            const toggle = event.target;
-            toggle.textContent = type === 'password' ? '👁️' : '👁️‍🗨️';
-        }
-
-        // Cargar teléfono guardado si existe
+        // Cargar teléfono guardado
         document.addEventListener('DOMContentLoaded', function() {
             const savedPhone = localStorage.getItem('taximoto_phone');
             if (savedPhone) {
                 document.getElementById('telefono').value = savedPhone;
             }
         });
+
+        // Función para volver
+        function goHome() {
+            window.location.href = 'index.html';
+        }
     </script>
 </body>
 </html>
