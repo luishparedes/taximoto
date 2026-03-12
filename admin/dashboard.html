@@ -3,59 +3,45 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TAXIMOTO - Panel Admin</title>
+    <title>Taximoto - Admin</title>
     <link rel="stylesheet" href="../css/styles.css">
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="./supabase/config.js"></script>
-    <script src="./js/taximoto.js"></script>
 </head>
 <body>
-    <div class="app-header">
-        <h1>🚖 TAXIMOTO</h1>
-        <p>Panel de administración</p>
-        <button onclick="logout()" class="btn btn-secondary" style="width: auto; padding: 8px 16px;">Cerrar sesión</button>
-    </div>
-    
-    <div class="container">
-        <!-- Estadísticas -->
-        <div class="admin-stats">
-            <div class="stat-card"><div class="stat-number" id="total-usuarios">0</div><div class="stat-label">Usuarios</div></div>
-            <div class="stat-card"><div class="stat-number" id="total-conductores">0</div><div class="stat-label">Conductores</div></div>
-            <div class="stat-card"><div class="stat-number" id="total-viajes">0</div><div class="stat-label">Viajes</div></div>
-        </div>
-        
-        <!-- Tabs -->
-        <div class="tabs">
-            <button class="tab active" onclick="showTab('pendientes', event)">Pendientes</button>
-            <button class="tab" onclick="showTab('usuarios', event)">Usuarios</button>
-            <button class="tab" onclick="showTab('conductores', event)">Conductores</button>
-            <button class="tab" onclick="showTab('viajes', event)">Viajes</button>
-        </div>
-        
-        <!-- Contenido -->
-        <div id="pendientes" class="tab-content">
-            <h3>Pendientes de activación</h3>
-            <div id="pendientes-container"></div>
-        </div>
-        
-        <div id="usuarios" class="tab-content" style="display: none;">
-            <h3>Usuarios activos</h3>
-            <div id="usuarios-container"></div>
-        </div>
-        
-        <div id="conductores" class="tab-content" style="display: none;">
-            <h3>Conductores activos</h3>
-            <div id="conductores-container"></div>
-        </div>
-        
-        <div id="viajes" class="tab-content" style="display: none;">
-            <h3>Historial de viajes</h3>
-            <div id="viajes-container"></div>
-        </div>
-        
-        <div class="legal-notice">
-            TAXIMOTO solo conecta conductores con usuarios. No se hace responsable por pagos, accidentes, daños o conflictos.
-        </div>
-    </div>
+    <header>
+        <h1>Panel de Administrador</h1>
+        <button id="logout" class="btn-logout">Cerrar sesión</button>
+    </header>
+    <main>
+        <h2>Usuarios pendientes de activación</h2>
+        <table id="tabla-pendientes">
+            <thead>
+                <tr>
+                    <th>Nombre</th>
+                    <th>Teléfono</th>
+                    <th>Cédula</th>
+                    <th>Tipo</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+
+        <h2>Usuarios activos</h2>
+        <table id="tabla-activos">
+            <thead>
+                <tr>
+                    <th>Nombre</th>
+                    <th>Teléfono</th>
+                    <th>Cédula</th>
+                    <th>Tipo</th>
+                    <th>Activo</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+    </main>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="../js/taximoto.js"></script>
 </body>
 </html>

@@ -2,87 +2,55 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes, viewport-fit=cover">
-    <title>TAXIMOTO - Registro</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Taximoto - Registro</title>
     <link rel="stylesheet" href="css/styles.css">
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="./supabase/config.js"></script>
-    <script src="./js/taximoto.js"></script>
 </head>
 <body>
-    <div class="app-header">
-        <h1>🚖 TAXIMOTO</h1>
-        <p>Registro de Usuario</p>
-        <button onclick="goHome()" class="btn btn-small btn-secondary" style="margin-top: 10px;">← Volver</button>
-    </div>
-    
-    <div class="container">
-        <!-- Formulario de registro SIMPLIFICADO -->
-        <div class="card">
-            <h3>📝 Crear cuenta</h3>
-            <p style="color: var(--text-gray); margin-bottom: 20px;">Completa tus datos para solicitar viajes.</p>
-            
-            <form onsubmit="registrarUsuario(event)">
-                <div class="form-group">
-                    <label>👤 Nombre completo</label>
-                    <input type="text" id="nombre" required placeholder="Ej: Luis Pérez">
-                </div>
-                
-                <div class="form-group">
-                    <label>📱 Teléfono</label>
-                    <input type="tel" id="telefono" required 
-                           placeholder="04121234567" 
-                           inputmode="numeric"
-                           pattern="[0-9]{10,}"
-                           title="Mínimo 10 dígitos">
-                </div>
-
-                <div class="form-group">
-                    <label>🆔 Número de Cédula</label>
-                    <input type="text" id="cedula" required 
-                           placeholder="Ej: V-12345678"
-                           inputmode="numeric">
-                </div>
-                
-                <div class="form-group">
-                    <label>🔒 Contraseña (mínimo 6 caracteres)</label>
-                    <div class="password-container">
-                        <input type="password" id="password" required minlength="6" placeholder="••••••">
-                        <span class="password-toggle" onclick="togglePassword('password')">👁️</span>
-                    </div>
-                </div>
-                
-                <div class="terms-checkbox">
-                    <input type="checkbox" id="terms" required>
-                    <label for="terms">Acepto los <a href="#" onclick="alert('Al registrarme, acepto que el administrador revisará mi información.')">términos y condiciones</a></label>
-                </div>
-                
-                <button type="submit" class="btn btn-primary btn-large">Registrarme</button>
-            </form>
-            
-            <p style="text-align: center; margin: 20px 0 0 0;">
-                ¿Ya tienes cuenta? 
-                <a href="login.html" style="color: var(--accent-green); font-weight: 600;">Inicia sesión</a>
-            </p>
-        </div>
-        
-        <!-- Información de contacto admin (siempre visible) -->
-        <div class="card" style="text-align: center; background-color: var(--bg-secondary);">
-            <h3 style="color: var(--accent-green);">📞 Contacto administrador</h3>
-            <p style="font-size: 1.5rem; color: var(--text-white); margin: 10px 0;">0412-5278450</p>
-            <p style="color: var(--text-gray);">Para activación de cuentas de conductores</p>
-        </div>
-        
-        <div class="legal-notice">
-            TAXIMOTO solo conecta conductores con usuarios. No se hace responsable por pagos, accidentes, daños o conflictos.
-        </div>
-    </div>
-    
-    <script>
-        function togglePassword(inputId) {
-            const input = document.getElementById(inputId);
-            input.type = input.type === 'password' ? 'text' : 'password';
-        }
-    </script>
+    <header>
+        <h1>Taximoto</h1>
+        <a href="index.html" class="back-link">← Volver</a>
+    </header>
+    <main>
+        <h2>Registro</h2>
+        <form id="register-form">
+            <div class="form-group">
+                <label for="nombre">Nombre completo:</label>
+                <input type="text" id="nombre" name="nombre" required>
+            </div>
+            <div class="form-group">
+                <label for="telefono">Teléfono (ej. 04125278450):</label>
+                <input type="tel" id="telefono" name="telefono" required>
+            </div>
+            <div class="form-group">
+                <label for="cedula">Cédula:</label>
+                <input type="text" id="cedula" name="cedula" required>
+            </div>
+            <div class="form-group">
+                <label for="tipo">Tipo de cuenta:</label>
+                <select id="tipo" name="tipo" required>
+                    <option value="usuario">Usuario</option>
+                    <option value="conductor_taxi">Conductor Taxi</option>
+                    <option value="conductor_mototaxi">Conductor Mototaxi</option>
+                    <option value="comercio">Comercio</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="password">Contraseña:</label>
+                <input type="password" id="password" name="password" required>
+            </div>
+            <div class="form-group">
+                <label>
+                    <input type="checkbox" id="acepto" required>
+                    Acepto el <a href="#" onclick="alert('La plataforma Taximoto solo conecta usuarios con conductores de la comunidad. No nos hacemos responsables por daños, pérdidas o conflictos derivados del servicio.'); return false;">aviso de responsabilidad</a>.
+                </label>
+            </div>
+            <button type="submit" class="btn">Registrarse</button>
+        </form>
+        <div id="message" class="message"></div>
+        <p>¿Ya tienes cuenta? <a href="login.html">Inicia sesión</a></p>
+    </main>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="js/taximoto.js"></script>
 </body>
 </html>

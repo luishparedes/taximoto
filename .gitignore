@@ -1,21 +1,13 @@
-# Dependencias
+# Node dependencies (si en algún momento usas npm)
 node_modules/
-package-lock.json
 
-# Archivos de entorno
+# Env files
 .env
-.env.local
-.env.production
 
-# Archivos de sistema
+# OS files
 .DS_Store
 Thumbs.db
-*.log
 
 # IDE
 .vscode/
 .idea/
-
-# Archivos de build
-dist/
-build/

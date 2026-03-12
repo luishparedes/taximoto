@@ -2,73 +2,73 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes, viewport-fit=cover">
-    <title>TAXIMOTO - Solicitar viaje</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Taximoto - Solicitar Servicio</title>
     <link rel="stylesheet" href="css/styles.css">
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="./supabase/config.js"></script>
-    <script src="./js/taximoto.js"></script>
 </head>
 <body>
-    <div class="app-header">
-        <h1>🚖 TAXIMOTO</h1>
-        <p>Solicitar viaje</p>
-        <div style="display: flex; gap: 10px; justify-content: center; margin-top: 10px;">
-            <button onclick="logout()" class="btn btn-small btn-secondary">Cerrar sesión</button>
-        </div>
-    </div>
-    
-    <div class="container">
-        <!-- Formulario de solicitud -->
-        <div class="card">
-            <h3>Solicita tu viaje</h3>
-            <form id="solicitar-form">
+    <header>
+        <h1>Taximoto</h1>
+        <button id="logout" class="btn-logout">Cerrar sesión</button>
+    </header>
+    <main>
+        <h2>Solicitar servicio</h2>
+        <form id="request-form">
+            <div class="form-group">
+                <label for="tipo_servicio">Tipo de servicio:</label>
+                <select id="tipo_servicio" required>
+                    <option value="taxi">Taxi</option>
+                    <option value="mototaxi">Mototaxi</option>
+                    <option value="delivery">Delivery</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="origen">Origen:</label>
+                <input type="text" id="origen" required placeholder="Dirección de recogida">
+            </div>
+            <div class="form-group">
+                <label for="destino">Destino:</label>
+                <input type="text" id="destino" required placeholder="Dirección de destino">
+            </div>
+            <button type="submit" class="btn">Solicitar</button>
+        </form>
+
+        <hr>
+
+        <h3>Mis solicitudes activas</h3>
+        <div id="solicitudes-activas"></div>
+
+        <h3>Historial</h3>
+        <div id="historial"></div>
+    </main>
+
+    <!-- Modal para calificar -->
+    <div id="modal-calificar" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h3>Calificar servicio</h3>
+            <form id="calificar-form">
+                <input type="hidden" id="calificar-solicitud-id">
                 <div class="form-group">
-                    <label>Tipo de vehículo</label>
-                    <select id="tipo" required>
-                        <option value="taxi">🚕 Taxi</option>
-                        <option value="mototaxi">🛵 Mototaxi</option>
+                    <label>Puntuación (1-5):</label>
+                    <select id="puntuacion" required>
+                        <option value="5">5 - Excelente</option>
+                        <option value="4">4 - Bueno</option>
+                        <option value="3">3 - Regular</option>
+                        <option value="2">2 - Malo</option>
+                        <option value="1">1 - Pésimo</option>
                     </select>
                 </div>
-                
                 <div class="form-group">
-                    <label>📍 ¿Dónde estás?</label>
-                    <input type="text" id="origen" required 
-                           placeholder="Dirección de recogida"
-                           autocomplete="off">
+                    <label for="comentario">Comentario (opcional):</label>
+                    <textarea id="comentario" rows="3"></textarea>
                 </div>
-                
-                <div class="form-group">
-                    <label>🎯 ¿A dónde vas?</label>
-                    <input type="text" id="destino" required 
-                           placeholder="Dirección de destino"
-                           autocomplete="off">
-                </div>
-                
-                <button type="submit" class="btn btn-primary btn-large">Solicitar viaje</button>
+                <button type="submit" class="btn">Enviar calificación</button>
             </form>
-        </div>
-        
-        <!-- Estado del viaje (se actualiza en tiempo real) -->
-        <div id="estado-viaje"></div>
-        
-        <!-- Contenedor para calificación -->
-        <div id="calificacion-container"></div>
-        
-        <!-- Aviso legal -->
-        <div class="legal-notice">
-            TAXIMOTO solo conecta conductores con usuarios. No se hace responsable por pagos, accidentes, daños o conflictos.
         </div>
     </div>
 
-    <script>
-        // Asegurar que el formulario tenga el event listener
-        document.addEventListener('DOMContentLoaded', function() {
-            const form = document.getElementById('solicitar-form');
-            if (form) {
-                form.addEventListener('submit', window.solicitarViaje);
-            }
-        });
-    </script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="js/taximoto.js"></script>
 </body>
 </html>

@@ -2,83 +2,41 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes, viewport-fit=cover">
-    <title>TAXIMOTO - Panel Conductor</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Taximoto - Conductor</title>
     <link rel="stylesheet" href="css/styles.css">
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="./supabase/config.js"></script>
-    <script src="./js/taximoto.js"></script>
 </head>
 <body>
-    <div class="app-header">
-        <h1>🚖 TAXIMOTO</h1>
-        <p>Panel de Conductor</p>
-        <div style="display: flex; gap: 10px; justify-content: center; margin-top: 10px;">
-            <span id="conductor-nombre" style="color: var(--accent-green);"></span>
-            <button onclick="logout()" class="btn btn-small btn-secondary">Salir</button>
-        </div>
-    </div>
-    
-    <div class="container">
-        <!-- Estado de cuenta (se llenará con JS) -->
-        <div id="estado-cuenta" class="card" style="background-color: var(--bg-secondary); display: none;">
-            <!-- El contenido se inserta dinámicamente -->
-        </div>
-        
-        <!-- Solicitudes disponibles -->
-        <div class="card">
-            <h3>🆕 Solicitudes disponibles</h3>
-            <div id="solicitudes-container">
-                <p class="loading" style="text-align: center;">Esperando solicitudes...</p>
-            </div>
-        </div>
-        
-        <!-- Historial de viajes -->
-        <div class="card">
-            <h3>📋 Historial de viajes</h3>
-            <div id="historial-container">
-                <p class="loading">Cargando historial...</p>
-            </div>
-        </div>
-        
-        <!-- Información de contacto -->
-        <div class="card" style="text-align: center; background-color: var(--bg-secondary);">
-            <h3 style="color: var(--accent-green);">📞 Soporte</h3>
-            <p style="font-size: 1.3rem;">0412-5278450</p>
-            <p style="color: var(--text-gray);">Para cualquier inconveniente</p>
-        </div>
-        
-        <div class="legal-notice">
-            TAXIMOTO solo conecta conductores con usuarios. No se hace responsable por pagos, accidentes, daños o conflictos.
+    <header>
+        <h1>Taximoto Conductor</h1>
+        <button id="logout" class="btn-logout">Cerrar sesión</button>
+    </header>
+    <main>
+        <h2>Solicitudes disponibles</h2>
+        <div id="solicitudes-disponibles"></div>
+
+        <hr>
+
+        <h2>Mis servicios activos</h2>
+        <div id="mis-servicios"></div>
+
+        <hr>
+
+        <h2>Historial</h2>
+        <div id="historial"></div>
+    </main>
+
+    <!-- Modal para ver detalles y contacto -->
+    <div id="modal-detalle" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h3>Detalle del servicio</h3>
+            <div id="detalle-info"></div>
+            <div id="detalle-botones"></div>
         </div>
     </div>
 
-    <script>
-        // Verificar activación al cargar
-        document.addEventListener('DOMContentLoaded', async function() {
-            const usuario = await window.getCurrentUser();
-            
-            if (usuario) {
-                if (!usuario.activo) {
-                    // Mostrar mensaje de pendiente
-                    document.getElementById('estado-cuenta').style.display = 'block';
-                    document.getElementById('estado-cuenta').innerHTML = `
-                        <div style="text-align: center;">
-                            <p style="color: #ffaa00; font-size: 1.2rem;">⏳ Cuenta pendiente de activación</p>
-                            <p style="color: var(--text-gray); margin: 10px 0;">Contacta al administrador:</p>
-                            <p style="font-size: 1.5rem; color: var(--accent-green);">0412-5278450</p>
-                        </div>
-                    `;
-                    
-                    // Ocultar secciones de trabajo
-                    document.querySelector('.card h3')?.parentElement?.style.display = 'none';
-                    document.getElementById('solicitudes-container').innerHTML = '';
-                } else {
-                    document.getElementById('estado-cuenta').style.display = 'none';
-                    window.initConductorDashboard();
-                }
-            }
-        });
-    </script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="js/taximoto.js"></script>
 </body>
 </html>
