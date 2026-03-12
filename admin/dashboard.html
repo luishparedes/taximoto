@@ -3,44 +3,20 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Taximoto - Admin</title>
+    <title>Admin - TaxiMoto2026</title>
     <link rel="stylesheet" href="../css/styles.css">
 </head>
 <body>
-    <header>
-        <h1>Panel de Administrador</h1>
-        <button id="logout" class="btn-logout">Cerrar sesión</button>
-    </header>
-    <main>
-        <h2>Usuarios pendientes de activación</h2>
-        <table id="tabla-pendientes">
-            <thead>
-                <tr>
-                    <th>Nombre</th>
-                    <th>Teléfono</th>
-                    <th>Cédula</th>
-                    <th>Tipo</th>
-                    <th>Acciones</th>
-                </tr>
-            </thead>
-            <tbody></tbody>
-        </table>
+    <div class="container">
+        <h2 class="logo">Panel Administrador</h2>
+        <div id="adminControls">
+            <button class="btn btn-primary" id="verUsuarios">Ver Usuarios</button>
+            <button class="btn btn-primary" id="verSolicitudes">Ver Solicitudes</button>
+            <button class="btn btn-primary" id="verConductores">Ver Conductores</button>
+        </div>
+        <div id="adminContent"></div>
+    </div>
 
-        <h2>Usuarios activos</h2>
-        <table id="tabla-activos">
-            <thead>
-                <tr>
-                    <th>Nombre</th>
-                    <th>Teléfono</th>
-                    <th>Cédula</th>
-                    <th>Tipo</th>
-                    <th>Activo</th>
-                    <th>Acciones</th>
-                </tr>
-            </thead>
-            <tbody></tbody>
-        </table>
-    </main>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="../js/taximoto.js"></script>
 </body>

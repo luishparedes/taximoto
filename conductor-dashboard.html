@@ -3,37 +3,17 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Taximoto - Conductor</title>
+    <title>Panel Conductor - TaxiMoto2026</title>
     <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
-    <header>
-        <h1>Taximoto Conductor</h1>
-        <button id="logout" class="btn-logout">Cerrar sesión</button>
-    </header>
-    <main>
-        <h2>Solicitudes disponibles</h2>
-        <div id="solicitudes-disponibles"></div>
-
-        <hr>
-
-        <h2>Mis servicios activos</h2>
-        <div id="mis-servicios"></div>
-
-        <hr>
-
-        <h2>Historial</h2>
-        <div id="historial"></div>
-    </main>
-
-    <!-- Modal para ver detalles y contacto -->
-    <div id="modal-detalle" class="modal">
-        <div class="modal-content">
-            <span class="close">&times;</span>
-            <h3>Detalle del servicio</h3>
-            <div id="detalle-info"></div>
-            <div id="detalle-botones"></div>
-        </div>
+    <div class="container">
+        <h2 class="logo">Panel Conductor</h2>
+        <div id="conductorInfo"></div>
+        <h3>Solicitudes disponibles</h3>
+        <div id="solicitudesDisponibles"></div>
+        <h3>Mis servicios activos</h3>
+        <div id="misServicios"></div>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>

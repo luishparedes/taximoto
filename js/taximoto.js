@@ -1,656 +1,315 @@
-// Configuración de Supabase
+// js/taximoto.js
+
+// Inicialización de Supabase
 const SUPABASE_URL = 'https://kamcozmlzgvixaopsiqk.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImthbWNvem1semd2aXhhb3BzaXFrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMxNjY1NTYsImV4cCI6MjA4ODc0MjU1Nn0.oCdHd4mPEMMhctsCNcviXLFuwrDuLSym5raTmTtUtGQ';
 
-// Inicializar cliente de Supabase (v2) - usando la variable global 'supabase' del CDN
-const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-
-// Variable global para el usuario autenticado (perfil)
-let currentUser = null;
-
-// Función para mostrar mensajes en la UI
-function showMessage(elementId, message, type) {
-    const el = document.getElementById(elementId);
-    if (el) {
-        el.textContent = message;
-        el.className = `message ${type}`;
-        el.style.display = 'block';
-        setTimeout(() => {
-            el.style.display = 'none';
-        }, 5000);
-    }
+// Verificar que la librería se cargó correctamente
+if (typeof supabase === 'undefined') {
+    console.error('La librería Supabase no se cargó. Revisa el CDN.');
+} else {
+    var supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 }
 
-// Verificar sesión al cargar cada página
-document.addEventListener('DOMContentLoaded', async () => {
-    await checkSession();
-    // Ejecutar funciones específicas según la página
-    const path = window.location.pathname;
-    if (path.includes('login.html')) {
-        initLogin();
-    } else if (path.includes('register.html')) {
-        initRegister();
-    } else if (path.includes('request.html')) {
-        initRequest();
-    } else if (path.includes('conductor-dashboard.html')) {
-        initConductorDashboard();
-    } else if (path.includes('admin/dashboard.html')) {
-        initAdminDashboard();
-    }
-});
+// Función global para obtener el cliente
+function getSupabase() {
+    return supabaseClient;
+}
 
-// Verificar sesión y cargar perfil del usuario
+// Manejo de autenticación
+async function register(email, password, nombre, apellido, telefono, tipo) {
+    const supabase = getSupabase();
+    // 1. Registrar usuario en auth
+    const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+    });
+    if (error) throw error;
+    const user = data.user;
+    // 2. Actualizar perfil con datos adicionales
+    const { error: updateError } = await supabase
+        .from('profiles')
+        .update({ nombre, apellido, telefono, tipo })
+        .eq('id', user.id);
+    if (updateError) throw updateError;
+    return user;
+}
+
+async function login(email, password) {
+    const supabase = getSupabase();
+    const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+    });
+    if (error) throw error;
+    return data;
+}
+
+async function logout() {
+    const supabase = getSupabase();
+    await supabase.auth.signOut();
+    window.location.href = 'index.html';
+}
+
+// Verificar sesión y redirigir según perfil/estado
 async function checkSession() {
-    const { data: { session }, error } = await supabaseClient.auth.getSession();
-    if (error) {
-        console.error('Error obteniendo sesión:', error);
-        return;
-    }
-
-    if (session) {
-        // Obtener datos del usuario desde la tabla usuarios usando auth_user_id
-        const { data: userData, error: userError } = await supabaseClient
-            .from('usuarios')
-            .select('*')
-            .eq('auth_user_id', session.user.id)
-            .single();
-
-        if (userError) {
-            console.error('Error obteniendo perfil:', userError);
-            // Si no hay perfil, cerramos sesión
-            await supabaseClient.auth.signOut();
-            window.location.href = 'login.html';
-            return;
-        }
-
-        currentUser = userData;
-
-        // Redirecciones basadas en rol y página actual
-        const path = window.location.pathname;
-        if (currentUser.tipo === 'admin' && !path.includes('admin/dashboard.html')) {
-            window.location.href = 'admin/dashboard.html';
-        } else if (currentUser.tipo.startsWith('conductor') && !path.includes('conductor-dashboard.html')) {
-            window.location.href = 'conductor-dashboard.html';
-        } else if (currentUser.tipo === 'usuario' && !path.includes('request.html') && !path.includes('index.html')) {
-            window.location.href = 'request.html';
-        } else if (currentUser.tipo === 'comercio' && !path.includes('request.html')) {
-            // Por ahora comercio usa misma interfaz que usuario
-            window.location.href = 'request.html';
-        }
-    } else {
-        // No hay sesión, redirigir a login si no está en páginas públicas
-        const path = window.location.pathname;
-        if (!path.includes('index.html') && !path.includes('login.html') && !path.includes('register.html')) {
+    const supabase = getSupabase();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+        // Si no está logueado y la página no es pública (index, login, register), redirigir a login
+        const publicPages = ['index.html', 'login.html', 'register.html'];
+        const currentPage = window.location.pathname.split('/').pop();
+        if (!publicPages.includes(currentPage)) {
             window.location.href = 'login.html';
         }
+        return null;
     }
-}
-
-// ==================== LOGIN ====================
-function initLogin() {
-    const form = document.getElementById('login-form');
-    if (!form) return;
-
-    form.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const telefono = document.getElementById('telefono').value.trim();
-        const password = document.getElementById('password').value;
-
-        // Crear email temporal: telefono@taximoto.app
-        const email = telefono + '@taximoto.app';
-
-        const { data, error } = await supabaseClient.auth.signInWithPassword({
-            email: email,
-            password: password
-        });
-
-        if (error) {
-            showMessage('message', 'Error: ' + error.message, 'error');
-            return;
-        }
-
-        // Login exitoso, redirigirá según checkSession
-        window.location.reload();
-    });
-}
-
-// ==================== REGISTRO ====================
-function initRegister() {
-    const form = document.getElementById('register-form');
-    if (!form) return;
-
-    form.addEventListener('submit', async (e) => {
-        e.preventDefault();
-
-        const nombre = document.getElementById('nombre').value.trim();
-        const telefono = document.getElementById('telefono').value.trim();
-        const cedula = document.getElementById('cedula').value.trim();
-        const tipo = document.getElementById('tipo').value;
-        const password = document.getElementById('password').value;
-        const acepto = document.getElementById('acepto').checked;
-
-        if (!acepto) {
-            showMessage('message', 'Debes aceptar el aviso de responsabilidad', 'error');
-            return;
-        }
-
-        // Validar que el teléfono no esté ya registrado en la tabla usuarios
-        const { data: existingUser, error: checkError } = await supabaseClient
-            .from('usuarios')
-            .select('telefono')
-            .eq('telefono', telefono)
-            .maybeSingle();
-
-        if (existingUser) {
-            showMessage('message', 'Este teléfono ya está registrado', 'error');
-            return;
-        }
-
-        // Crear email temporal
-        const email = telefono + '@taximoto.app';
-
-        // 1. Crear usuario en Auth
-        const { data: authData, error: authError } = await supabaseClient.auth.signUp({
-            email: email,
-            password: password
-        });
-
-        if (authError) {
-            showMessage('message', 'Error en registro: ' + authError.message, 'error');
-            return;
-        }
-
-        // 2. Insertar en tabla usuarios
-        const { error: insertError } = await supabaseClient
-            .from('usuarios')
-            .insert([{
-                auth_user_id: authData.user.id,
-                telefono: telefono,
-                nombre: nombre,
-                cedula: cedula,
-                tipo: tipo,
-                activo: false  // Pendiente de activación
-            }]);
-
-        if (insertError) {
-            // Si falla, deberíamos eliminar el usuario de auth, pero es complejo. Por ahora mostramos error.
-            showMessage('message', 'Error guardando perfil. Contacta al administrador.', 'error');
-            console.error(insertError);
-            return;
-        }
-
-        // Mostrar mensaje de éxito
-        showMessage('message', 'Tu solicitud fue enviada. El administrador se comunicará contigo por WhatsApp para enviarte un formulario con los requisitos necesarios para activar tu cuenta.', 'success');
-        form.reset();
-    });
-}
-
-// ==================== SOLICITUD DE SERVICIO (usuario) ====================
-function initRequest() {
-    if (!currentUser) return;
-    if (!currentUser.activo) {
-        alert('Tu cuenta aún no ha sido activada por el administrador.');
-        window.location.href = 'index.html';
-        return;
-    }
-
-    const form = document.getElementById('request-form');
-    if (form) {
-        form.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const tipo_servicio = document.getElementById('tipo_servicio').value;
-            const origen = document.getElementById('origen').value.trim();
-            const destino = document.getElementById('destino').value.trim();
-
-            const { error } = await supabaseClient
-                .from('solicitudes')
-                .insert([{
-                    usuario_id: currentUser.id,
-                    tipo_servicio: tipo_servicio,
-                    origen: origen,
-                    destino: destino,
-                    estado: 'enviada'
-                }]);
-
-            if (error) {
-                alert('Error al crear solicitud: ' + error.message);
-            } else {
-                alert('Solicitud enviada. Espera a que un conductor la acepte.');
-                form.reset();
-                cargarSolicitudesUsuario();
-            }
-        });
-    }
-
-    // Cargar solicitudes activas e historial
-    cargarSolicitudesUsuario();
-
-    // Suscripción en tiempo real a cambios en solicitudes del usuario
-    const subscription = supabaseClient
-        .channel('solicitudes-usuario')
-        .on('postgres_changes', { 
-            event: '*', 
-            schema: 'public', 
-            table: 'solicitudes',
-            filter: `usuario_id=eq.${currentUser.id}`
-        }, (payload) => {
-            console.log('Cambio en solicitudes:', payload);
-            cargarSolicitudesUsuario();
-        })
-        .subscribe();
-
-    // Manejar cierre de sesión
-    document.getElementById('logout')?.addEventListener('click', async () => {
-        await supabaseClient.auth.signOut();
-        window.location.href = 'index.html';
-    });
-}
-
-async function cargarSolicitudesUsuario() {
-    // Solicitudes activas (no finalizadas ni canceladas)
-    const { data: activas, error } = await supabaseClient
-        .from('solicitudes')
+    // Obtener perfil
+    const { data: profile, error } = await supabase
+        .from('profiles')
         .select('*')
-        .eq('usuario_id', currentUser.id)
-        .in('estado', ['enviada', 'aceptada', 'en_camino'])
-        .order('created_at', { ascending: false });
-
+        .eq('id', user.id)
+        .single();
     if (error) {
-        console.error(error);
-    } else {
-        const container = document.getElementById('solicitudes-activas');
-        if (container) {
-            if (activas.length === 0) {
-                container.innerHTML = '<p>No tienes solicitudes activas.</p>';
-            } else {
-                let html = '';
-                activas.forEach(s => {
-                    html += `<div class="solicitud-card">
-                        <p><strong>${s.tipo_servicio}</strong> de ${s.origen} a ${s.destino}</p>
-                        <p>Estado: ${s.estado}</p>
-                        ${s.conductor_id ? '<p>Conductor asignado. Espera notificaciones.</p>' : ''}
-                    </div>`;
-                });
-                container.innerHTML = html;
-            }
+        console.error('Error al obtener perfil', error);
+        return null;
+    }
+    // Verificar si es admin (rol)
+    const { data: roleData } = await supabase
+        .from('roles')
+        .select('rol')
+        .eq('user_id', user.id)
+        .maybeSingle();
+    const isAdmin = roleData?.rol === 'admin';
+    // Redirecciones basadas en tipo de página
+    const currentPage = window.location.pathname.split('/').pop();
+    if (currentPage === 'admin/dashboard.html' && !isAdmin) {
+        window.location.href = '../index.html';
+    }
+    if (currentPage === 'conductor-dashboard.html' && !['taxi','mototaxi','comercio'].includes(profile.tipo)) {
+        window.location.href = 'index.html';
+    }
+    if (currentPage === 'request.html' && profile.tipo !== 'usuario') {
+        // Solo usuarios pueden pedir servicios
+        window.location.href = 'index.html';
+    }
+    // Verificar estado activo/inactivo
+    if (profile.estado === 'inactivo' && currentPage !== 'index.html' && currentPage !== 'login.html' && currentPage !== 'register.html') {
+        // Mostrar mensaje en cualquier página interna (menos admin) de que está inactivo
+        if (!isAdmin) {
+            alert('Tu cuenta está en proceso de verificación. Contacta al administrador.');
+            window.location.href = 'index.html';
         }
     }
-
-    // Historial (finalizadas)
-    const { data: historial, error: err2 } = await supabaseClient
-        .from('solicitudes')
-        .select('*, calificaciones(*)')
-        .eq('usuario_id', currentUser.id)
-        .in('estado', ['finalizada', 'cancelada'])
-        .order('created_at', { ascending: false });
-
-    if (!err2 && document.getElementById('historial')) {
-        let html = '';
-        historial.forEach(s => {
-            const yaCalificado = s.calificaciones && s.calificaciones.length > 0;
-            html += `<div class="historial-item">
-                <p><strong>${s.tipo_servicio}</strong> - ${s.estado} - ${new Date(s.created_at).toLocaleDateString()}</p>
-                ${!yaCalificado && s.estado === 'finalizada' ? `<button class="btn-small" onclick="abrirModalCalificar('${s.id}')">Calificar</button>` : ''}
-            </div>`;
-        });
-        document.getElementById('historial').innerHTML = html || '<p>No hay historial.</p>';
-    }
+    return { user, profile, isAdmin };
 }
 
-// Función global para abrir modal de calificación
-window.abrirModalCalificar = function(solicitudId) {
-    document.getElementById('calificar-solicitud-id').value = solicitudId;
-    document.getElementById('modal-calificar').style.display = 'block';
-}
+// --- Lógica específica por página ---
+document.addEventListener('DOMContentLoaded', async () => {
+    const path = window.location.pathname;
+    // Verificar sesión en todas las páginas excepto las públicas
+    await checkSession();
 
-// Inicializar modal de calificación
-document.addEventListener('DOMContentLoaded', () => {
-    const modal = document.getElementById('modal-calificar');
-    if (modal) {
-        const span = modal.querySelector('.close');
-        span.onclick = () => modal.style.display = 'none';
-        window.onclick = (event) => {
-            if (event.target == modal) modal.style.display = 'none';
-        };
-
-        const form = document.getElementById('calificar-form');
-        form.addEventListener('submit', async (e) => {
+    if (path.includes('register.html')) {
+        document.getElementById('registerForm').addEventListener('submit', async (e) => {
             e.preventDefault();
-            const solicitudId = document.getElementById('calificar-solicitud-id').value;
-            const puntuacion = document.getElementById('puntuacion').value;
-            const comentario = document.getElementById('comentario').value;
-
-            // Obtener conductor_id de la solicitud
-            const { data: solicitud, error: errSol } = await supabaseClient
-                .from('solicitudes')
-                .select('conductor_id')
-                .eq('id', solicitudId)
-                .single();
-
-            if (errSol || !solicitud.conductor_id) {
-                alert('Error: no se pudo identificar al conductor');
-                return;
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            const nombre = document.getElementById('nombre').value;
+            const apellido = document.getElementById('apellido').value;
+            const telefono = document.getElementById('telefono').value;
+            const tipo = document.getElementById('tipo').value;
+            try {
+                await register(email, password, nombre, apellido, telefono, tipo);
+                alert('Registro exitoso. Tu cuenta está inactiva. El administrador la activará pronto.');
+                window.location.href = 'login.html';
+            } catch (err) {
+                alert('Error: ' + err.message);
             }
+        });
+    }
 
-            const { error } = await supabaseClient
-                .from('calificaciones')
-                .insert([{
-                    solicitud_id: solicitudId,
-                    usuario_id: currentUser.id,
-                    conductor_id: solicitud.conductor_id,
-                    puntuacion: parseInt(puntuacion),
-                    comentario: comentario
-                }]);
+    if (path.includes('login.html')) {
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            try {
+                await login(email, password);
+                // Redirigir según perfil
+                const { profile, isAdmin } = await checkSession(); // ya redirige internamente, pero podemos forzar
+                if (isAdmin) window.location.href = 'admin/dashboard.html';
+                else if (['taxi','mototaxi','comercio'].includes(profile.tipo)) window.location.href = 'conductor-dashboard.html';
+                else window.location.href = 'index.html';
+            } catch (err) {
+                alert('Credenciales inválidas: ' + err.message);
+            }
+        });
 
-            if (error) {
-                alert('Error al guardar calificación: ' + error.message);
-            } else {
-                alert('¡Gracias por calificar!');
-                modal.style.display = 'none';
-                cargarSolicitudesUsuario();
+        document.getElementById('forgotPassword').addEventListener('click', (e) => {
+            e.preventDefault();
+            alert('Contacta al administrador al 04125278450 para recuperar acceso.');
+        });
+    }
+
+    if (path.includes('request.html')) {
+        const tipo = document.getElementById('tipoServicio').value;
+        if (!tipo) window.location.href = 'index.html';
+
+        document.getElementById('requestForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const supabase = getSupabase();
+            const { data: { user } } = await supabase.auth.getUser();
+            const origen = document.getElementById('origen').value;
+            const destino = document.getElementById('destino').value;
+            const { error } = await supabase.from('solicitudes').insert({
+                usuario_id: user.id,
+                tipo_servicio: tipo,
+                origen,
+                destino,
+                estado: 'enviada'
+            });
+            if (error) alert('Error al crear solicitud: ' + error.message);
+            else {
+                alert('Solicitud enviada. Espera a que un conductor acepte.');
+                // Redirigir a pantalla de seguimiento (podría ser otra página, pero por ahora index)
+                window.location.href = 'index.html';
+            }
+        });
+    }
+
+    if (path.includes('conductor-dashboard.html')) {
+        // Cargar solicitudes disponibles y suscribirse a nuevas
+        const supabase = getSupabase();
+        const { data: { user } } = await supabase.auth.getUser();
+        const { data: profile } = await supabase.from('profiles').select('tipo').eq('id', user.id).single();
+
+        // Obtener solicitudes enviadas del tipo correspondiente
+        async function loadAvailableRequests() {
+            const { data, error } = await supabase
+                .from('solicitudes')
+                .select('*')
+                .eq('tipo_servicio', profile.tipo)
+                .eq('estado', 'enviada')
+                .order('created_at', { ascending: false });
+            if (error) console.error(error);
+            else renderRequests(data);
+        }
+
+        function renderRequests(requests) {
+            const container = document.getElementById('solicitudesDisponibles');
+            container.innerHTML = '';
+            requests.forEach(req => {
+                const card = document.createElement('div');
+                card.className = 'solicitud-card';
+                card.innerHTML = `
+                    <p><strong>Origen:</strong> ${req.origen}</p>
+                    <p><strong>Destino:</strong> ${req.destino}</p>
+                    <button class="btn btn-primary aceptar" data-id="${req.id}">Aceptar</button>
+                `;
+                container.appendChild(card);
+            });
+            document.querySelectorAll('.aceptar').forEach(btn => {
+                btn.addEventListener('click', async (e) => {
+                    const solicitudId = e.target.dataset.id;
+                    const { error } = await supabase
+                        .from('solicitudes')
+                        .update({ estado: 'aceptada', conductor_id: user.id, accepted_at: new Date() })
+                        .eq('id', solicitudId);
+                    if (error) alert('Error: ' + error.message);
+                    else {
+                        // Crear notificación para el usuario
+                        await supabase.from('notificaciones').insert({
+                            user_id: req.usuario_id,
+                            mensaje: 'Tu solicitud fue aceptada por un conductor. Está en camino.'
+                        });
+                        loadAvailableRequests();
+                    }
+                });
+            });
+        }
+
+        // Suscripción en tiempo real
+        const subscription = supabase
+            .channel('solicitudes')
+            .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'solicitudes', filter: `tipo_servicio=eq.${profile.tipo}` }, payload => {
+                // Nueva solicitud, recargar
+                loadAvailableRequests();
+            })
+            .subscribe();
+
+        loadAvailableRequests();
+
+        // Cargar servicios activos (aceptados por este conductor y no finalizados)
+        async function loadActiveServices() {
+            const { data, error } = await supabase
+                .from('solicitudes')
+                .select('*')
+                .eq('conductor_id', user.id)
+                .in('estado', ['aceptada', 'conductor_en_camino']);
+            if (error) console.error(error);
+            else renderActiveServices(data);
+        }
+
+        function renderActiveServices(services) {
+            const container = document.getElementById('misServicios');
+            container.innerHTML = '';
+            services.forEach(svc => {
+                const card = document.createElement('div');
+                card.className = 'solicitud-card';
+                card.innerHTML = `
+                    <p><strong>Cliente:</strong> (ID: ${svc.usuario_id})</p>
+                    <p><strong>Origen:</strong> ${svc.origen}</p>
+                    <p><strong>Destino:</strong> ${svc.destino}</p>
+                    <p><strong>Estado:</strong> ${svc.estado}</p>
+                    ${svc.estado === 'aceptada' ? '<button class="btn btn-secondary iniciar">Iniciar viaje</button>' : ''}
+                    ${svc.estado === 'conductor_en_camino' ? '<button class="btn btn-secondary finalizar">Finalizar</button>' : ''}
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        loadActiveServices();
+    }
+
+    if (path.includes('admin/dashboard.html')) {
+        // Solo admin puede ver esto
+        const supabase = getSupabase();
+        // Verificar admin otra vez
+        const { isAdmin } = await checkSession();
+        if (!isAdmin) return;
+
+        document.getElementById('verUsuarios').addEventListener('click', async () => {
+            const { data, error } = await supabase.from('profiles').select('*').order('created_at');
+            if (error) alert(error.message);
+            else {
+                let html = '<h3>Usuarios</h3><table border="1" style="width:100%"><tr><th>Email</th><th>Nombre</th><th>Tipo</th><th>Estado</th><th>Acción</th></tr>';
+                data.forEach(u => {
+                    html += `<tr>
+                        <td>${u.email}</td>
+                        <td>${u.nombre} ${u.apellido}</td>
+                        <td>${u.tipo}</td>
+                        <td>${u.estado}</td>
+                        <td>
+                            <button class="activar" data-id="${u.id}" data-estado="${u.estado}">
+                                ${u.estado === 'inactivo' ? 'Activar' : 'Desactivar'}
+                            </button>
+                        </td>
+                    </tr>`;
+                });
+                html += '</table>';
+                document.getElementById('adminContent').innerHTML = html;
+
+                document.querySelectorAll('.activar').forEach(btn => {
+                    btn.addEventListener('click', async (e) => {
+                        const id = e.target.dataset.id;
+                        const nuevoEstado = e.target.dataset.estado === 'inactivo' ? 'activo' : 'inactivo';
+                        const { error } = await supabase.from('profiles').update({ estado: nuevoEstado }).eq('id', id);
+                        if (error) alert(error.message);
+                        else e.target.closest('tr').querySelector('td:nth-child(4)').innerText = nuevoEstado;
+                    });
+                });
             }
         });
     }
 });
-
-// ==================== CONDUCTOR DASHBOARD ====================
-function initConductorDashboard() {
-    if (!currentUser) return;
-    if (!currentUser.activo) {
-        alert('Tu cuenta no está activada.');
-        window.location.href = 'index.html';
-        return;
-    }
-
-    cargarSolicitudesDisponibles();
-    cargarServiciosActivosConductor();
-    cargarHistorialConductor();
-
-    // Suscripciones en tiempo real
-    const channel = supabaseClient.channel('conductor-channel')
-        .on('postgres_changes', { 
-            event: 'INSERT', 
-            schema: 'public', 
-            table: 'solicitudes',
-            filter: `estado=eq.enviada`
-        }, () => {
-            cargarSolicitudesDisponibles();
-        })
-        .on('postgres_changes', {
-            event: '*',
-            schema: 'public',
-            table: 'solicitudes',
-            filter: `conductor_id=eq.${currentUser.id}`
-        }, () => {
-            cargarServiciosActivosConductor();
-            cargarHistorialConductor();
-        })
-        .subscribe();
-
-    document.getElementById('logout')?.addEventListener('click', async () => {
-        await supabaseClient.auth.signOut();
-        window.location.href = 'index.html';
-    });
-}
-
-async function cargarSolicitudesDisponibles() {
-    const { data, error } = await supabaseClient
-        .from('solicitudes')
-        .select('*, usuario:usuario_id(nombre, telefono)')
-        .eq('estado', 'enviada')
-        .order('created_at', { ascending: true });
-
-    if (error) {
-        console.error(error);
-        return;
-    }
-
-    const container = document.getElementById('solicitudes-disponibles');
-    if (!container) return;
-
-    if (data.length === 0) {
-        container.innerHTML = '<p>No hay solicitudes disponibles.</p>';
-        return;
-    }
-
-    let html = '';
-    data.forEach(s => {
-        html += `<div class="solicitud-card">
-            <p><strong>${s.tipo_servicio}</strong> de ${s.origen} a ${s.destino}</p>
-            <p>Usuario: ${s.usuario.nombre} (${s.usuario.telefono})</p>
-            <button class="btn-small" onclick="aceptarSolicitud('${s.id}')">Aceptar</button>
-        </div>`;
-    });
-    container.innerHTML = html;
-}
-
-// Función global para aceptar solicitud
-window.aceptarSolicitud = async function(solicitudId) {
-    if (!confirm('¿Aceptar esta solicitud?')) return;
-
-    const { error } = await supabaseClient
-        .from('solicitudes')
-        .update({ 
-            conductor_id: currentUser.id, 
-            estado: 'aceptada' 
-        })
-        .eq('id', solicitudId)
-        .eq('estado', 'enviada'); // Solo si sigue enviada
-
-    if (error) {
-        alert('Error al aceptar: ' + error.message);
-    } else {
-        alert('Solicitud aceptada');
-        cargarSolicitudesDisponibles();
-        cargarServiciosActivosConductor();
-    }
-}
-
-async function cargarServiciosActivosConductor() {
-    const { data, error } = await supabaseClient
-        .from('solicitudes')
-        .select('*, usuario:usuario_id(nombre, telefono)')
-        .eq('conductor_id', currentUser.id)
-        .in('estado', ['aceptada', 'en_camino'])
-        .order('created_at', { ascending: false });
-
-    if (error) {
-        console.error(error);
-        return;
-    }
-
-    const container = document.getElementById('mis-servicios');
-    if (!container) return;
-
-    if (data.length === 0) {
-        container.innerHTML = '<p>No tienes servicios activos.</p>';
-        return;
-    }
-
-    let html = '';
-    data.forEach(s => {
-        html += `<div class="servicio-card">
-            <p><strong>${s.tipo_servicio}</strong> de ${s.origen} a ${s.destino}</p>
-            <p>Usuario: ${s.usuario.nombre} - ${s.usuario.telefono}</p>
-            <p>Estado: ${s.estado}</p>
-            <button class="btn-small" onclick="cambiarEstadoServicio('${s.id}', 'en_camino')">En camino</button>
-            <button class="btn-small" onclick="cambiarEstadoServicio('${s.id}', 'finalizada')">Finalizar</button>
-            <button class="btn-small" onclick="contactarWhatsApp('${s.usuario.telefono}')">WhatsApp</button>
-            <button class="btn-small" onclick="contactarLlamada('${s.usuario.telefono}')">Llamar</button>
-        </div>`;
-    });
-    container.innerHTML = html;
-}
-
-async function cargarHistorialConductor() {
-    const { data, error } = await supabaseClient
-        .from('solicitudes')
-        .select('*')
-        .eq('conductor_id', currentUser.id)
-        .in('estado', ['finalizada', 'cancelada'])
-        .order('created_at', { ascending: false });
-
-    if (error) {
-        console.error(error);
-        return;
-    }
-
-    const container = document.getElementById('historial');
-    if (!container) return;
-
-    if (data.length === 0) {
-        container.innerHTML = '<p>No hay historial.</p>';
-        return;
-    }
-
-    let html = '';
-    data.forEach(s => {
-        html += `<div>${s.tipo_servicio} - ${s.estado} - ${new Date(s.created_at).toLocaleDateString()}</div>`;
-    });
-    container.innerHTML = html;
-}
-
-window.cambiarEstadoServicio = async function(solicitudId, nuevoEstado) {
-    const { error } = await supabaseClient
-        .from('solicitudes')
-        .update({ estado: nuevoEstado })
-        .eq('id', solicitudId)
-        .eq('conductor_id', currentUser.id);
-
-    if (error) {
-        alert('Error: ' + error.message);
-    } else {
-        cargarServiciosActivosConductor();
-        cargarHistorialConductor();
-    }
-}
-
-window.contactarWhatsApp = function(telefono) {
-    // Eliminar espacios y formato, dejar solo números
-    const numero = telefono.replace(/\D/g, '');
-    window.open(`https://wa.me/${numero}`, '_blank');
-}
-
-window.contactarLlamada = function(telefono) {
-    window.location.href = `tel:${telefono}`;
-}
-
-// ==================== ADMIN DASHBOARD ====================
-async function initAdminDashboard() {
-    if (!currentUser || currentUser.tipo !== 'admin') {
-        alert('Acceso no autorizado');
-        window.location.href = '../index.html';
-        return;
-    }
-
-    cargarUsuariosPendientes();
-    cargarUsuariosActivos();
-
-    // Suscripción a cambios en usuarios
-    supabaseClient
-        .channel('admin-users')
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'usuarios' }, () => {
-            cargarUsuariosPendientes();
-            cargarUsuariosActivos();
-        })
-        .subscribe();
-
-    document.getElementById('logout')?.addEventListener('click', async () => {
-        await supabaseClient.auth.signOut();
-        window.location.href = '../index.html';
-    });
-}
-
-async function cargarUsuariosPendientes() {
-    const { data, error } = await supabaseClient
-        .from('usuarios')
-        .select('*')
-        .eq('activo', false)
-        .order('created_at', { ascending: false });
-
-    if (error) {
-        console.error(error);
-        return;
-    }
-
-    const tbody = document.querySelector('#tabla-pendientes tbody');
-    if (!tbody) return;
-
-    if (data.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="5">No hay usuarios pendientes</td></tr>';
-        return;
-    }
-
-    let html = '';
-    data.forEach(u => {
-        html += `<tr>
-            <td>${u.nombre}</td>
-            <td>${u.telefono}</td>
-            <td>${u.cedula}</td>
-            <td>${u.tipo}</td>
-            <td>
-                <button class="btn-small" onclick="activarUsuario('${u.id}')">Activar</button>
-            </td>
-        </tr>`;
-    });
-    tbody.innerHTML = html;
-}
-
-async function cargarUsuariosActivos() {
-    const { data, error } = await supabaseClient
-        .from('usuarios')
-        .select('*')
-        .eq('activo', true)
-        .order('created_at', { ascending: false });
-
-    if (error) {
-        console.error(error);
-        return;
-    }
-
-    const tbody = document.querySelector('#tabla-activos tbody');
-    if (!tbody) return;
-
-    if (data.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="6">No hay usuarios activos</td></tr>';
-        return;
-    }
-
-    let html = '';
-    data.forEach(u => {
-        html += `<tr>
-            <td>${u.nombre}</td>
-            <td>${u.telefono}</td>
-            <td>${u.cedula}</td>
-            <td>${u.tipo}</td>
-            <td>${u.activo ? 'Sí' : 'No'}</td>
-            <td>
-                <button class="btn-small" onclick="desactivarUsuario('${u.id}')">Desactivar</button>
-            </td>
-        </tr>`;
-    });
-    tbody.innerHTML = html;
-}
-
-// Funciones globales para admin
-window.activarUsuario = async function(usuarioId) {
-    const { error } = await supabaseClient
-        .from('usuarios')
-        .update({ activo: true })
-        .eq('id', usuarioId);
-
-    if (error) {
-        alert('Error: ' + error.message);
-    }
-}
-
-window.desactivarUsuario = async function(usuarioId) {
-    const { error } = await supabaseClient
-        .from('usuarios')
-        .update({ activo: false })
-        .eq('id', usuarioId);
-
-    if (error) {
-        alert('Error: ' + error.message);
-    }
-}

@@ -2,28 +2,49 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Taximoto - Conectamos tu comunidad</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>TaxiMoto2026</title>
     <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
-    <header>
-        <h1>Taximoto</h1>
-        <p>Transporte y delivery de confianza en tu comunidad</p>
-    </header>
-    <main>
-        <div class="buttons">
-            <a href="login.html" class="btn">Iniciar Sesión</a>
-            <a href="register.html" class="btn btn-secondary">Registrarse</a>
+    <div class="container">
+        <h1 class="logo">TaxiMoto<span>2026</span></h1>
+        <div class="btn-group">
+            <a href="register.html" class="btn btn-primary">Registro</a>
+            <a href="login.html" class="btn btn-secondary">Inicio de sesión</a>
         </div>
-        <section class="info">
-            <h2>¿Cómo funciona?</h2>
-            <p>Regístrate como usuario, conductor o comercio. Solicita un servicio y un conductor de tu comunidad lo aceptará.</p>
-            <p><strong>Conductores y comercios pagan $5 semanales. Usuarios no pagan.</strong></p>
-            <p class="disclaimer">La plataforma Taximoto solo conecta usuarios con conductores de la comunidad. No nos hacemos responsables por daños, pérdidas o conflictos derivados del servicio.</p>
-        </section>
-    </main>
+
+        <div class="service-buttons">
+            <button class="btn-service" data-service="taxi">🚖 Pedir Taxi</button>
+            <button class="btn-service" data-service="mototaxi">🛵 Pedir Mototaxi</button>
+            <button class="btn-service" data-service="delivery">📦 Delivery</button>
+        </div>
+
+        <div class="legal">
+            <p>TaxiMoto2026 conecta usuarios con conductores de la comunidad.</p>
+            <p><strong>TaxiMoto2026 NO se hace responsable por daños, caídas o conflictos derivados del servicio.</strong></p>
+            <p>Los pagos se realizan directamente entre usuario y conductor. La plataforma no procesa pagos.</p>
+        </div>
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="js/taximoto.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // Redirigir a request.html si el usuario está logueado, sino a login
+            const btns = document.querySelectorAll('.btn-service');
+            btns.forEach(btn => {
+                btn.addEventListener('click', async (e) => {
+                    const service = e.target.dataset.service;
+                    const { data: { user } } = await supabase.auth.getUser();
+                    if (user) {
+                        window.location.href = `request.html?tipo=${service}`;
+                    } else {
+                        window.location.href = 'login.html';
+                    }
+                });
+            });
+        });
+    </script>
 </body>
 </html>
