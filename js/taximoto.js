@@ -2,8 +2,8 @@
 const SUPABASE_URL = 'https://kamcozmlzgvixaopsiqk.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_HJkELm1PKc9hTB7R8DsRng_a2qqkv8z';
 
-// Inicializar cliente de Supabase (v2)
-const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+// Inicializar cliente de Supabase (v2) - usando la variable global 'supabase' del CDN
+const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 // Variable global para el usuario autenticado (perfil)
 let currentUser = null;
@@ -41,7 +41,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 // Verificar sesión y cargar perfil del usuario
 async function checkSession() {
-    const { data: { session }, error } = await supabase.auth.getSession();
+    const { data: { session }, error } = await supabaseClient.auth.getSession();
     if (error) {
         console.error('Error obteniendo sesión:', error);
         return;
@@ -49,7 +49,7 @@ async function checkSession() {
 
     if (session) {
         // Obtener datos del usuario desde la tabla usuarios usando auth_user_id
-        const { data: userData, error: userError } = await supabase
+        const { data: userData, error: userError } = await supabaseClient
             .from('usuarios')
             .select('*')
             .eq('auth_user_id', session.user.id)
@@ -58,7 +58,7 @@ async function checkSession() {
         if (userError) {
             console.error('Error obteniendo perfil:', userError);
             // Si no hay perfil, cerramos sesión
-            await supabase.auth.signOut();
+            await supabaseClient.auth.signOut();
             window.location.href = 'login.html';
             return;
         }
@@ -99,7 +99,7 @@ function initLogin() {
         // Crear email temporal: telefono@taximoto.app
         const email = telefono + '@taximoto.app';
 
-        const { data, error } = await supabase.auth.signInWithPassword({
+        const { data, error } = await supabaseClient.auth.signInWithPassword({
             email: email,
             password: password
         });
@@ -135,7 +135,7 @@ function initRegister() {
         }
 
         // Validar que el teléfono no esté ya registrado en la tabla usuarios
-        const { data: existingUser, error: checkError } = await supabase
+        const { data: existingUser, error: checkError } = await supabaseClient
             .from('usuarios')
             .select('telefono')
             .eq('telefono', telefono)
@@ -150,7 +150,7 @@ function initRegister() {
         const email = telefono + '@taximoto.app';
 
         // 1. Crear usuario en Auth
-        const { data: authData, error: authError } = await supabase.auth.signUp({
+        const { data: authData, error: authError } = await supabaseClient.auth.signUp({
             email: email,
             password: password
         });
@@ -161,7 +161,7 @@ function initRegister() {
         }
 
         // 2. Insertar en tabla usuarios
-        const { error: insertError } = await supabase
+        const { error: insertError } = await supabaseClient
             .from('usuarios')
             .insert([{
                 auth_user_id: authData.user.id,
@@ -202,7 +202,7 @@ function initRequest() {
             const origen = document.getElementById('origen').value.trim();
             const destino = document.getElementById('destino').value.trim();
 
-            const { error } = await supabase
+            const { error } = await supabaseClient
                 .from('solicitudes')
                 .insert([{
                     usuario_id: currentUser.id,
@@ -226,7 +226,7 @@ function initRequest() {
     cargarSolicitudesUsuario();
 
     // Suscripción en tiempo real a cambios en solicitudes del usuario
-    const subscription = supabase
+    const subscription = supabaseClient
         .channel('solicitudes-usuario')
         .on('postgres_changes', { 
             event: '*', 
@@ -241,14 +241,14 @@ function initRequest() {
 
     // Manejar cierre de sesión
     document.getElementById('logout')?.addEventListener('click', async () => {
-        await supabase.auth.signOut();
+        await supabaseClient.auth.signOut();
         window.location.href = 'index.html';
     });
 }
 
 async function cargarSolicitudesUsuario() {
     // Solicitudes activas (no finalizadas ni canceladas)
-    const { data: activas, error } = await supabase
+    const { data: activas, error } = await supabaseClient
         .from('solicitudes')
         .select('*')
         .eq('usuario_id', currentUser.id)
@@ -277,7 +277,7 @@ async function cargarSolicitudesUsuario() {
     }
 
     // Historial (finalizadas)
-    const { data: historial, error: err2 } = await supabase
+    const { data: historial, error: err2 } = await supabaseClient
         .from('solicitudes')
         .select('*, calificaciones(*)')
         .eq('usuario_id', currentUser.id)
@@ -321,7 +321,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const comentario = document.getElementById('comentario').value;
 
             // Obtener conductor_id de la solicitud
-            const { data: solicitud, error: errSol } = await supabase
+            const { data: solicitud, error: errSol } = await supabaseClient
                 .from('solicitudes')
                 .select('conductor_id')
                 .eq('id', solicitudId)
@@ -332,7 +332,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
 
-            const { error } = await supabase
+            const { error } = await supabaseClient
                 .from('calificaciones')
                 .insert([{
                     solicitud_id: solicitudId,
@@ -367,7 +367,7 @@ function initConductorDashboard() {
     cargarHistorialConductor();
 
     // Suscripciones en tiempo real
-    const channel = supabase.channel('conductor-channel')
+    const channel = supabaseClient.channel('conductor-channel')
         .on('postgres_changes', { 
             event: 'INSERT', 
             schema: 'public', 
@@ -388,13 +388,13 @@ function initConductorDashboard() {
         .subscribe();
 
     document.getElementById('logout')?.addEventListener('click', async () => {
-        await supabase.auth.signOut();
+        await supabaseClient.auth.signOut();
         window.location.href = 'index.html';
     });
 }
 
 async function cargarSolicitudesDisponibles() {
-    const { data, error } = await supabase
+    const { data, error } = await supabaseClient
         .from('solicitudes')
         .select('*, usuario:usuario_id(nombre, telefono)')
         .eq('estado', 'enviada')
@@ -428,7 +428,7 @@ async function cargarSolicitudesDisponibles() {
 window.aceptarSolicitud = async function(solicitudId) {
     if (!confirm('¿Aceptar esta solicitud?')) return;
 
-    const { error } = await supabase
+    const { error } = await supabaseClient
         .from('solicitudes')
         .update({ 
             conductor_id: currentUser.id, 
@@ -447,7 +447,7 @@ window.aceptarSolicitud = async function(solicitudId) {
 }
 
 async function cargarServiciosActivosConductor() {
-    const { data, error } = await supabase
+    const { data, error } = await supabaseClient
         .from('solicitudes')
         .select('*, usuario:usuario_id(nombre, telefono)')
         .eq('conductor_id', currentUser.id)
@@ -483,7 +483,7 @@ async function cargarServiciosActivosConductor() {
 }
 
 async function cargarHistorialConductor() {
-    const { data, error } = await supabase
+    const { data, error } = await supabaseClient
         .from('solicitudes')
         .select('*')
         .eq('conductor_id', currentUser.id)
@@ -511,7 +511,7 @@ async function cargarHistorialConductor() {
 }
 
 window.cambiarEstadoServicio = async function(solicitudId, nuevoEstado) {
-    const { error } = await supabase
+    const { error } = await supabaseClient
         .from('solicitudes')
         .update({ estado: nuevoEstado })
         .eq('id', solicitudId)
@@ -547,7 +547,7 @@ async function initAdminDashboard() {
     cargarUsuariosActivos();
 
     // Suscripción a cambios en usuarios
-    supabase
+    supabaseClient
         .channel('admin-users')
         .on('postgres_changes', { event: '*', schema: 'public', table: 'usuarios' }, () => {
             cargarUsuariosPendientes();
@@ -556,13 +556,13 @@ async function initAdminDashboard() {
         .subscribe();
 
     document.getElementById('logout')?.addEventListener('click', async () => {
-        await supabase.auth.signOut();
+        await supabaseClient.auth.signOut();
         window.location.href = '../index.html';
     });
 }
 
 async function cargarUsuariosPendientes() {
-    const { data, error } = await supabase
+    const { data, error } = await supabaseClient
         .from('usuarios')
         .select('*')
         .eq('activo', false)
@@ -597,7 +597,7 @@ async function cargarUsuariosPendientes() {
 }
 
 async function cargarUsuariosActivos() {
-    const { data, error } = await supabase
+    const { data, error } = await supabaseClient
         .from('usuarios')
         .select('*')
         .eq('activo', true)
@@ -634,7 +634,7 @@ async function cargarUsuariosActivos() {
 
 // Funciones globales para admin
 window.activarUsuario = async function(usuarioId) {
-    const { error } = await supabase
+    const { error } = await supabaseClient
         .from('usuarios')
         .update({ activo: true })
         .eq('id', usuarioId);
@@ -645,7 +645,7 @@ window.activarUsuario = async function(usuarioId) {
 }
 
 window.desactivarUsuario = async function(usuarioId) {
-    const { error } = await supabase
+    const { error } = await supabaseClient
         .from('usuarios')
         .update({ activo: false })
         .eq('id', usuarioId);
