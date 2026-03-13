@@ -5,6 +5,52 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin - TaxiMoto2026</title>
     <link rel="stylesheet" href="../css/styles.css">
+    <style>
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            font-size: 0.85rem;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+        th {
+            background-color: #39FF14;
+            color: black;
+        }
+        tr:nth-child(even) {
+            background-color: #f2f2f2;
+        }
+        .btn-activar {
+            background-color: #28a745;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 20px;
+            cursor: pointer;
+        }
+        .btn-desactivar {
+            background-color: #dc3545;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 20px;
+            cursor: pointer;
+        }
+        .filtros {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        .filtros button {
+            flex: 1;
+            min-width: 100px;
+        }
+    </style>
 </head>
 <body>
     <div class="container">
@@ -12,11 +58,13 @@
         <button class="btn-back" onclick="window.location.href='../index.html'">← Inicio</button>
         <button id="logoutBtnAdmin" class="btn btn-secondary" style="margin-bottom:20px;">Cerrar sesión</button>
 
-        <div id="adminControls">
-            <button class="btn btn-primary" id="verUsuarios">Ver Usuarios</button>
-            <button class="btn btn-primary" id="verSolicitudes">Ver Solicitudes</button>
-            <button class="btn btn-primary" id="verConductores">Ver Conductores</button>
+        <div class="filtros">
+            <button class="btn btn-primary" id="verUsuarios">👥 Todos los usuarios</button>
+            <button class="btn btn-primary" id="verConductores">🚖 Conductores</button>
+            <button class="btn btn-primary" id="verSolicitudes">📋 Solicitudes</button>
+            <button class="btn btn-primary" id="verInactivos">⏳ Inactivos</button>
         </div>
+        
         <div id="adminContent"></div>
     </div>
 
@@ -32,105 +80,179 @@
             }
 
             // Verificar que es admin por teléfono
-            const { data: profile } = await supabase
+            const { data: profile, error: profileError } = await supabase
                 .from('profiles')
-                .select('telefono')
+                .select('telefono, nombre, email')
                 .eq('id', user.id)
                 .single();
 
-            if (profile.telefono !== '04125278450') {
-                alert('Acceso denegado');
+            if (profileError || profile.telefono !== '04125278450') {
+                alert('Acceso denegado - Solo administradores');
                 window.location.href = '../index.html';
                 return;
             }
 
+            // Mostrar información del admin
+            const adminInfo = document.createElement('div');
+            adminInfo.className = 'conductor-info';
+            adminInfo.style.marginBottom = '20px';
+            adminInfo.innerHTML = `
+                <strong>👤 Admin: ${profile.nombre || 'Administrador'}</strong><br>
+                <span>📧 ${profile.email}</span><br>
+                <span>📱 ${profile.telefono}</span>
+            `;
+            document.querySelector('.container').insertBefore(adminInfo, document.getElementById('adminContent'));
+
             // Función para cargar usuarios
-            document.getElementById('verUsuarios').addEventListener('click', async () => {
-                const { data, error } = await supabase
+            async function loadUsuarios(filtro = 'todos') {
+                let query = supabase
                     .from('profiles')
                     .select('*')
-                    .order('created_at');
-                if (error) alert(error.message);
-                else {
-                    let html = '<h3>Usuarios</h3><table><tr><th>Email</th><th>Nombre</th><th>Tipo</th><th>Estado</th><th>Acción</th></tr>';
-                    data.forEach(u => {
-                        html += `<tr>
-                            <td>${u.email}</td>
-                            <td>${u.nombre} ${u.apellido}</td>
-                            <td>${u.tipo}</td>
-                            <td>${u.estado}</td>
-                            <td><button class="activar" data-id="${u.id}" data-estado="${u.estado}">${u.estado === 'inactivo' ? 'Activar' : 'Desactivar'}</button></td>
-                        </tr>`;
-                    });
-                    html += '</table>';
-                    document.getElementById('adminContent').innerHTML = html;
-
-                    document.querySelectorAll('.activar').forEach(btn => {
-                        btn.addEventListener('click', async (e) => {
-                            const id = e.target.dataset.id;
-                            const nuevoEstado = e.target.dataset.estado === 'inactivo' ? 'activo' : 'inactivo';
-                            const { error } = await supabase
-                                .from('profiles')
-                                .update({ estado: nuevoEstado })
-                                .eq('id', id);
-                            if (error) alert(error.message);
-                            else {
-                                e.target.closest('tr').querySelector('td:nth-child(4)').innerText = nuevoEstado;
-                                e.target.dataset.estado = nuevoEstado;
-                                e.target.innerText = nuevoEstado === 'inactivo' ? 'Activar' : 'Desactivar';
-                            }
-                        });
-                    });
+                    .order('created_at', { ascending: false });
+                
+                if (filtro === 'conductores') {
+                    query = query.in('tipo', ['taxi', 'mototaxi']);
+                } else if (filtro === 'inactivos') {
+                    query = query.eq('estado', 'inactivo');
                 }
-            });
 
-            // Ver solicitudes
-            document.getElementById('verSolicitudes').addEventListener('click', async () => {
+                const { data, error } = await query;
+                if (error) alert(error.message);
+                else renderUsuarios(data);
+            }
+
+            function renderUsuarios(usuarios) {
+                let html = '<h3>👥 Usuarios</h3>';
+                html += '<table>';
+                html += '<tr><th>Email</th><th>Nombre</th><th>Teléfono</th><th>Tipo</th><th>Estado</th><th>Acción</th></tr>';
+                
+                usuarios.forEach(u => {
+                    html += `<tr>
+                        <td>${u.email}</td>
+                        <td>${u.nombre} ${u.apellido}</td>
+                        <td>${u.telefono || '—'}</td>
+                        <td>${u.tipo}</td>
+                        <td>${u.estado}</td>
+                        <td>
+                            <button class="${u.estado === 'inactivo' ? 'btn-activar' : 'btn-desactivar'}" 
+                                    data-id="${u.id}" 
+                                    data-estado="${u.estado}">
+                                ${u.estado === 'inactivo' ? 'Activar' : 'Desactivar'}
+                            </button>
+                        </td>
+                    </tr>`;
+                });
+                
+                html += '</table>';
+                document.getElementById('adminContent').innerHTML = html;
+
+                // Event listeners para botones activar/desactivar
+                document.querySelectorAll('button[data-id]').forEach(btn => {
+                    btn.addEventListener('click', async (e) => {
+                        const id = e.target.dataset.id;
+                        const nuevoEstado = e.target.dataset.estado === 'inactivo' ? 'activo' : 'inactivo';
+                        
+                        const { error } = await supabase
+                            .from('profiles')
+                            .update({ estado: nuevoEstado })
+                            .eq('id', id);
+                            
+                        if (error) {
+                            alert('Error: ' + error.message);
+                        } else {
+                            // Recargar la misma vista
+                            if (document.querySelector('.filtros .btn-primary.active')) {
+                                const filtroActivo = document.querySelector('.filtros .btn-primary.active').id;
+                                if (filtroActivo === 'verConductores') loadUsuarios('conductores');
+                                else if (filtroActivo === 'verInactivos') loadUsuarios('inactivos');
+                                else loadUsuarios('todos');
+                            } else {
+                                loadUsuarios('todos');
+                            }
+                        }
+                    });
+                });
+            }
+
+            // Ver solicitudes (corregido el error de relación)
+            async function loadSolicitudes() {
                 const { data, error } = await supabase
                     .from('solicitudes')
-                    .select('*, profiles!solicitudes_usuario_id_fkey(email)')
+                    .select(`
+                        *,
+                        usuario:usuario_id (
+                            email,
+                            nombre,
+                            apellido,
+                            telefono
+                        ),
+                        conductor:conductor_id (
+                            email,
+                            nombre,
+                            apellido,
+                            telefono
+                        )
+                    `)
                     .order('created_at', { ascending: false });
-                if (error) alert(error.message);
-                else {
-                    let html = '<h3>Solicitudes</h3><table><tr><th>ID</th><th>Usuario</th><th>Tipo</th><th>Origen</th><th>Destino</th><th>Estado</th><th>Conductor</th></tr>';
-                    data.forEach(s => {
-                        html += `<tr>
-                            <td>${s.id}</td>
-                            <td>${s.profiles?.email || s.usuario_id}</td>
-                            <td>${s.tipo_servicio}</td>
-                            <td>${s.origen}</td>
-                            <td>${s.destino}</td>
-                            <td>${s.estado}</td>
-                            <td>${s.conductor_id || 'N/A'}</td>
-                        </tr>`;
-                    });
-                    html += '</table>';
-                    document.getElementById('adminContent').innerHTML = html;
+
+                if (error) {
+                    alert('Error al cargar solicitudes: ' + error.message);
+                    console.error(error);
+                    return;
                 }
+
+                let html = '<h3>📋 Solicitudes</h3>';
+                html += '<table>';
+                html += '<tr><th>ID</th><th>Usuario</th><th>Teléfono</th><th>Tipo</th><th>Origen</th><th>Destino</th><th>Estado</th><th>Conductor</th><th>Fecha</th></tr>';
+                
+                data.forEach(s => {
+                    const usuario = s.usuario || { email: 'Desconocido', nombre: '', apellido: '', telefono: '' };
+                    const conductor = s.conductor || { email: '—', nombre: '', apellido: '' };
+                    
+                    html += `<tr>
+                        <td>${s.id}</td>
+                        <td>${usuario.nombre} ${usuario.apellido}<br><small>${usuario.email}</small></td>
+                        <td>${usuario.telefono || '—'}</td>
+                        <td>${s.tipo_servicio}</td>
+                        <td>${s.origen}</td>
+                        <td>${s.destino}</td>
+                        <td>${s.estado}</td>
+                        <td>${conductor.nombre} ${conductor.apellido}<br><small>${conductor.email}</small></td>
+                        <td>${new Date(s.created_at).toLocaleString()}</td>
+                    </tr>`;
+                });
+                
+                html += '</table>';
+                document.getElementById('adminContent').innerHTML = html;
+            }
+
+            // Event listeners para filtros
+            document.getElementById('verUsuarios').addEventListener('click', () => {
+                document.querySelectorAll('.filtros .btn-primary').forEach(btn => btn.classList.remove('active'));
+                document.getElementById('verUsuarios').classList.add('active');
+                loadUsuarios('todos');
             });
 
-            // Ver conductores (perfiles tipo taxi/mototaxi)
-            document.getElementById('verConductores').addEventListener('click', async () => {
-                const { data, error } = await supabase
-                    .from('profiles')
-                    .select('*')
-                    .in('tipo', ['taxi', 'mototaxi'])
-                    .order('created_at');
-                if (error) alert(error.message);
-                else {
-                    let html = '<h3>Conductores</h3><table><tr><th>Email</th><th>Nombre</th><th>Tipo</th><th>Estado</th></tr>';
-                    data.forEach(c => {
-                        html += `<tr>
-                            <td>${c.email}</td>
-                            <td>${c.nombre} ${c.apellido}</td>
-                            <td>${c.tipo}</td>
-                            <td>${c.estado}</td>
-                        </tr>`;
-                    });
-                    html += '</table>';
-                    document.getElementById('adminContent').innerHTML = html;
-                }
+            document.getElementById('verConductores').addEventListener('click', () => {
+                document.querySelectorAll('.filtros .btn-primary').forEach(btn => btn.classList.remove('active'));
+                document.getElementById('verConductores').classList.add('active');
+                loadUsuarios('conductores');
             });
+
+            document.getElementById('verInactivos').addEventListener('click', () => {
+                document.querySelectorAll('.filtros .btn-primary').forEach(btn => btn.classList.remove('active'));
+                document.getElementById('verInactivos').classList.add('active');
+                loadUsuarios('inactivos');
+            });
+
+            document.getElementById('verSolicitudes').addEventListener('click', () => {
+                document.querySelectorAll('.filtros .btn-primary').forEach(btn => btn.classList.remove('active'));
+                document.getElementById('verSolicitudes').classList.add('active');
+                loadSolicitudes();
+            });
+
+            // Cargar usuarios por defecto
+            loadUsuarios('todos');
 
             // Logout
             document.getElementById('logoutBtnAdmin').addEventListener('click', async () => {

@@ -5,10 +5,46 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Mi Panel - TaxiMoto2026</title>
     <link rel="stylesheet" href="css/styles.css">
+    <style>
+        .estado-badge {
+            display: inline-block;
+            padding: 5px 10px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: bold;
+        }
+        .estado-enviada { background-color: #ffc107; color: #000; }
+        .estado-aceptada { background-color: #17a2b8; color: #fff; }
+        .estado-camino { background-color: #007bff; color: #fff; }
+        .estado-finalizada { background-color: #28a745; color: #fff; }
+        .estado-cancelada { background-color: #dc3545; color: #fff; }
+        
+        .btn-cancelar {
+            background-color: #dc3545;
+            color: white;
+            border: none;
+            padding: 10px;
+            border-radius: 30px;
+            width: 100%;
+            margin-top: 10px;
+            cursor: pointer;
+        }
+        .btn-cancelar:hover {
+            background-color: #c82333;
+        }
+        
+        .conductor-info {
+            background-color: #e8f5e9;
+            padding: 15px;
+            border-radius: 15px;
+            margin-top: 10px;
+            border-left: 5px solid #39FF14;
+        }
+    </style>
 </head>
 <body>
     <div class="container">
-        <h2 class="logo">Bienvenido</h2>
+        <h2 class="logo">Mi Panel</h2>
         <button class="btn-back" onclick="window.location.href='index.html'">← Inicio</button>
         <button id="logoutBtnPanel" class="btn btn-secondary" style="margin-bottom:20px;">Cerrar sesión</button>
 
@@ -18,11 +54,14 @@
             <button class="btn-service" data-service="delivery">📦 Delivery</button>
         </div>
 
-        <h3>Mis solicitudes activas</h3>
+        <h3>📋 Mis solicitudes activas</h3>
         <div id="misSolicitudes"></div>
 
-        <h3>Historial</h3>
+        <h3>📜 Historial reciente</h3>
         <div id="historial"></div>
+        
+        <!-- Notificaciones -->
+        <div id="notificaciones" style="position: fixed; top: 10px; right: 10px; z-index: 1000;"></div>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -37,12 +76,13 @@
             }
 
             // Verificar estado activo
-            const { data: profile } = await supabase
+            const { data: profile, error: profileError } = await supabase
                 .from('profiles')
-                .select('estado')
+                .select('estado, tipo, nombre')
                 .eq('id', user.id)
                 .single();
-            if (profile.estado !== 'activo') {
+                
+            if (profileError || profile.estado !== 'activo') {
                 alert('Tu cuenta está inactiva. Contacta al administrador.');
                 window.location.href = 'index.html';
                 return;
@@ -56,14 +96,39 @@
                 });
             });
 
-            // Cargar solicitudes activas (no finalizadas)
+            // Función para mostrar notificación flotante
+            function showNotification(message, type = 'info') {
+                const notif = document.createElement('div');
+                notif.style.cssText = `
+                    background: ${type === 'success' ? '#d4edda' : '#fff3cd'};
+                    color: ${type === 'success' ? '#155724' : '#856404'};
+                    padding: 15px;
+                    border-radius: 30px;
+                    margin-bottom: 10px;
+                    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+                    border-left: 5px solid ${type === 'success' ? '#39FF14' : '#ffc107'};
+                `;
+                notif.textContent = message;
+                document.getElementById('notificaciones').appendChild(notif);
+                setTimeout(() => notif.remove(), 5000);
+            }
+
+            // Cargar solicitudes activas
             async function loadSolicitudes() {
                 const { data, error } = await supabase
                     .from('solicitudes')
-                    .select('*')
+                    .select(`
+                        *,
+                        conductor:conductor_id (
+                            nombre,
+                            apellido,
+                            telefono
+                        )
+                    `)
                     .eq('usuario_id', user.id)
                     .in('estado', ['enviada', 'aceptada', 'conductor_en_camino'])
                     .order('created_at', { ascending: false });
+                    
                 if (error) console.error(error);
                 else renderSolicitudes(data);
             }
@@ -71,23 +136,127 @@
             function renderSolicitudes(solicitudes) {
                 const container = document.getElementById('misSolicitudes');
                 container.innerHTML = '';
+                
                 if (solicitudes.length === 0) {
-                    container.innerHTML = '<p>No tienes solicitudes activas.</p>';
+                    container.innerHTML = '<p style="text-align:center; color:#666;">No tienes solicitudes activas.</p>';
                     return;
                 }
+
                 solicitudes.forEach(s => {
                     const card = document.createElement('div');
                     card.className = 'solicitud-card';
+                    
+                    let estadoTexto = '';
+                    let estadoClase = '';
+                    let infoConductor = '';
+                    let botonCancelar = '';
+                    
+                    switch(s.estado) {
+                        case 'enviada':
+                            estadoTexto = 'Buscando conductor...';
+                            estadoClase = 'estado-enviada';
+                            botonCancelar = `<button class="btn-cancelar" data-id="${s.id}">❌ Cancelar solicitud</button>`;
+                            break;
+                        case 'aceptada':
+                            estadoTexto = 'Conductor asignado';
+                            estadoClase = 'estado-aceptada';
+                            if (s.conductor) {
+                                infoConductor = `
+                                    <div class="conductor-info">
+                                        <strong>👤 Conductor:</strong> ${s.conductor.nombre} ${s.conductor.apellido}<br>
+                                        <strong>📱 Teléfono:</strong> ${s.conductor.telefono || 'No disponible'}<br>
+                                        <div style="display:flex; gap:10px; margin-top:10px;">
+                                            <a href="tel:${s.conductor.telefono}" class="btn btn-primary" style="flex:1; padding:10px;">📞 Llamar</a>
+                                            <a href="https://wa.me/${s.conductor.telefono?.replace(/\D/g,'')}" class="btn btn-secondary" style="flex:1; padding:10px;">💬 WhatsApp</a>
+                                        </div>
+                                    </div>
+                                `;
+                            }
+                            break;
+                        case 'conductor_en_camino':
+                            estadoTexto = '🚦 Conductor en camino';
+                            estadoClase = 'estado-camino';
+                            if (s.conductor) {
+                                infoConductor = `
+                                    <div class="conductor-info">
+                                        <strong>👤 Conductor:</strong> ${s.conductor.nombre} ${s.conductor.apellido}<br>
+                                        <strong>📱 Teléfono:</strong> ${s.conductor.telefono || 'No disponible'}<br>
+                                        <div style="display:flex; gap:10px; margin-top:10px;">
+                                            <a href="tel:${s.conductor.telefono}" class="btn btn-primary" style="flex:1; padding:10px;">📞 Llamar</a>
+                                            <a href="https://wa.me/${s.conductor.telefono?.replace(/\D/g,'')}" class="btn btn-secondary" style="flex:1; padding:10px;">💬 WhatsApp</a>
+                                        </div>
+                                    </div>
+                                `;
+                            }
+                            break;
+                    }
+
                     card.innerHTML = `
+                        <div style="display:flex; justify-content:space-between; align-items:start;">
+                            <div>
+                                <strong>📍 ${s.origen} → 🏁 ${s.destino}</strong>
+                            </div>
+                            <span class="estado-badge ${estadoClase}">${s.estado}</span>
+                        </div>
                         <p><strong>Tipo:</strong> ${s.tipo_servicio}</p>
-                        <p><strong>Origen:</strong> ${s.origen}</p>
-                        <p><strong>Destino:</strong> ${s.destino}</p>
-                        <p><strong>Estado:</strong> ${s.estado}</p>
-                        ${s.conductor_id ? `<p><strong>Conductor asignado</strong></p>` : ''}
-                        ${s.estado === 'aceptada' ? '<p>El conductor va en camino</p>' : ''}
+                        <p><strong>Estado:</strong> ${estadoTexto}</p>
+                        ${infoConductor}
+                        ${botonCancelar}
                     `;
                     container.appendChild(card);
                 });
+
+                // Event listeners para botones cancelar
+                document.querySelectorAll('.btn-cancelar').forEach(btn => {
+                    btn.addEventListener('click', async (e) => {
+                        if (!confirm('¿Estás seguro de cancelar esta solicitud?')) return;
+                        
+                        const id = e.target.dataset.id;
+                        const { error } = await supabase
+                            .from('solicitudes')
+                            .update({ estado: 'cancelada' })
+                            .eq('id', id)
+                            .eq('usuario_id', user.id);
+                            
+                        if (error) {
+                            alert('Error al cancelar: ' + error.message);
+                        } else {
+                            showNotification('Solicitud cancelada', 'success');
+                            loadSolicitudes();
+                        }
+                    });
+                });
+            }
+
+            // Cargar historial (últimas 5 solicitudes finalizadas)
+            async function loadHistorial() {
+                const { data, error } = await supabase
+                    .from('servicios')
+                    .select('*')
+                    .eq('usuario_id', user.id)
+                    .order('finished_at', { ascending: false })
+                    .limit(5);
+
+                if (error) console.error(error);
+                else {
+                    const container = document.getElementById('historial');
+                    container.innerHTML = '';
+                    
+                    if (data.length === 0) {
+                        container.innerHTML = '<p style="text-align:center; color:#666;">No hay viajes anteriores.</p>';
+                        return;
+                    }
+
+                    data.forEach(s => {
+                        const fecha = new Date(s.finished_at).toLocaleDateString();
+                        container.innerHTML += `
+                            <div class="solicitud-card" style="background:#f9f9f9;">
+                                <p><strong>${s.origen} → ${s.destino}</strong></p>
+                                <p>Tipo: ${s.tipo_servicio} | Fecha: ${fecha}</p>
+                            </div>
+                        `;
+                    });
+                }
             }
 
             // Suscripción en tiempo real
@@ -99,11 +268,28 @@
                     table: 'solicitudes', 
                     filter: `usuario_id=eq.${user.id}` 
                 }, payload => {
+                    if (payload.eventType === 'UPDATE') {
+                        if (payload.new.estado === 'aceptada') {
+                            showNotification('🎉 ¡Un conductor aceptó tu solicitud!', 'success');
+                        } else if (payload.new.estado === 'conductor_en_camino') {
+                            showNotification('🚦 El conductor está en camino', 'success');
+                        }
+                    }
                     loadSolicitudes();
+                })
+                .on('postgres_changes', {
+                    event: 'INSERT',
+                    schema: 'public',
+                    table: 'notificaciones',
+                    filter: `user_id=eq.${user.id}`
+                }, payload => {
+                    showNotification(payload.new.mensaje, 'info');
                 })
                 .subscribe();
 
+            // Cargar datos iniciales
             loadSolicitudes();
+            loadHistorial();
 
             // Logout
             document.getElementById('logoutBtnPanel').addEventListener('click', async () => {
