@@ -33,6 +33,7 @@
         <button class="btn-back" onclick="window.location.href='index.html'">← Inicio</button>
         <button id="logoutBtnConductor" class="btn btn-secondary" style="margin-bottom:20px;">Cerrar sesión</button>
 
+        <!-- Audio para notificaciones (se intentará reproducir con interacción) -->
         <audio id="notificationSound" preload="auto">
             <source src="https://www.soundjay.com/misc/sounds/bell-ringing-05.mp3" type="audio/mpeg">
         </audio>
@@ -62,14 +63,14 @@
             }
 
             // Obtener perfil del conductor
-            const { data: profile } = await supabase
+            const { data: profile, error: profileError } = await supabase
                 .from('profiles')
                 .select('tipo, estado, nombre, apellido, email, telefono')
                 .eq('id', user.id)
                 .single();
 
-            if (!profile || profile.estado !== 'activo' || !['taxi', 'mototaxi'].includes(profile.tipo)) {
-                alert('Acceso denegado');
+            if (profileError || !profile || profile.estado !== 'activo' || !['taxi', 'mototaxi'].includes(profile.tipo)) {
+                alert('Acceso denegado o cuenta inactiva');
                 window.location.href = 'index.html';
                 return;
             }
@@ -81,10 +82,12 @@
                 <span>🚖 Tipo: ${profile.tipo}</span>
             `;
 
-            function playSound() {
-                notificationSound.play().catch(() => {});
+            // Función para reproducir sonido (solo si el usuario ya interactuó)
+            function playNotificationSound() {
+                notificationSound.play().catch(e => console.log('Sonido bloqueado:', e));
             }
 
+            // Obtener datos de usuarios por sus IDs
             async function getUsuarios(ids) {
                 if (!ids.length) return {};
                 const { data } = await supabase
@@ -96,6 +99,7 @@
                 return map;
             }
 
+            // Cargar solicitudes disponibles
             async function loadAvailableRequests() {
                 let query = supabase
                     .from('solicitudes')
@@ -108,8 +112,12 @@
                     query = query.in('tipo_servicio', ['mototaxi', 'delivery']);
                 }
 
-                const { data } = await query.order('created_at', { ascending: false });
-                if (!data) return;
+                const { data, error } = await query.order('created_at', { ascending: false });
+                if (error) {
+                    console.error('Error cargando solicitudes:', error);
+                    document.getElementById('solicitudesDisponibles').innerHTML = '<p style="color:red;">Error al cargar</p>';
+                    return;
+                }
 
                 const userIds = data.map(s => s.usuario_id);
                 const usuariosMap = await getUsuarios(userIds);
@@ -118,13 +126,13 @@
                 container.innerHTML = '';
                 
                 if (data.length === 0) {
-                    container.innerHTML = '<p style="text-align:center; color:#666;">No hay solicitudes</p>';
+                    container.innerHTML = '<p style="text-align:center; color:#666;">No hay solicitudes disponibles</p>';
                     return;
                 }
 
                 data.forEach(s => {
-                    const u = usuariosMap[s.usuario_id] || { nombre: 'Usuario', telefono: 'N/A' };
-                    card = document.createElement('div');
+                    const u = usuariosMap[s.usuario_id] || { nombre: 'Usuario', apellido: '', telefono: 'N/A' };
+                    const card = document.createElement('div');
                     card.className = 'solicitud-card nueva';
                     card.innerHTML = `
                         <div style="display:flex; justify-content:space-between;">
@@ -143,15 +151,17 @@
                     container.appendChild(card);
                 });
 
+                // Asignar eventos a los botones aceptar
                 document.querySelectorAll('.aceptar').forEach(btn => {
                     btn.addEventListener('click', async (e) => {
                         const id = e.target.dataset.id;
                         const solicitud = data.find(s => s.id == id);
                         
-                        e.target.disabled = true;
-                        e.target.textContent = 'Procesando...';
+                        btn.disabled = true;
+                        btn.textContent = 'Procesando...';
 
-                        const { error } = await supabase
+                        // Actualizar solicitud: asignar conductor y cambiar estado a aceptada
+                        const { error: updateError } = await supabase
                             .from('solicitudes')
                             .update({ 
                                 estado: 'aceptada', 
@@ -159,38 +169,48 @@
                                 accepted_at: new Date() 
                             })
                             .eq('id', id)
-                            .eq('estado', 'enviada');
+                            .eq('estado', 'enviada'); // Asegurar que sigue enviada
 
-                        if (!error) {
+                        if (updateError) {
+                            alert('Error al aceptar: ' + updateError.message);
+                            btn.disabled = false;
+                            btn.textContent = '✅ Aceptar';
+                        } else {
+                            // Notificar al usuario
                             await supabase
                                 .from('notificaciones')
                                 .insert({
                                     user_id: solicitud.usuario_id,
-                                    mensaje: `✅ Tu solicitud fue aceptada por ${profile.nombre || 'un conductor'}.`
+                                    mensaje: `✅ Tu solicitud de ${solicitud.tipo_servicio} fue aceptada por ${profile.nombre || 'un conductor'}.`,
+                                    leida: false
                                 });
+                            // Recargar listas
                             loadAvailableRequests();
                             loadActiveServices();
-                        } else {
-                            alert('Error: ' + error.message);
-                            e.target.disabled = false;
-                            e.target.textContent = '✅ Aceptar';
                         }
                     });
                 });
             }
 
+            // Cargar servicios activos (aceptados o en camino)
             async function loadActiveServices() {
-                const { data } = await supabase
+                const { data, error } = await supabase
                     .from('solicitudes')
                     .select('*')
                     .eq('conductor_id', user.id)
                     .in('estado', ['aceptada', 'conductor_en_camino'])
                     .order('created_at', { ascending: false });
 
+                if (error) {
+                    console.error('Error cargando servicios activos:', error);
+                    document.getElementById('misServicios').innerHTML = '<p style="color:red;">Error</p>';
+                    return;
+                }
+
                 const container = document.getElementById('misServicios');
                 container.innerHTML = '';
                 if (!data || data.length === 0) {
-                    container.innerHTML = '<p style="text-align:center; color:#666;">Sin servicios activos</p>';
+                    container.innerHTML = '<p style="text-align:center; color:#666;">No tienes servicios activos</p>';
                     return;
                 }
 
@@ -198,7 +218,7 @@
                 const usuariosMap = await getUsuarios(userIds);
 
                 data.forEach(s => {
-                    const u = usuariosMap[s.usuario_id] || { nombre: 'Usuario' };
+                    const u = usuariosMap[s.usuario_id] || { nombre: 'Usuario', apellido: '', telefono: 'N/A' };
                     const card = document.createElement('div');
                     card.className = 'solicitud-card';
                     let botones = '';
@@ -216,6 +236,7 @@
                     container.appendChild(card);
                 });
 
+                // Eventos para iniciar viaje
                 document.querySelectorAll('.iniciar').forEach(btn => {
                     btn.addEventListener('click', async (e) => {
                         const id = e.target.dataset.id;
@@ -227,14 +248,17 @@
                     });
                 });
 
+                // Eventos para finalizar viaje
                 document.querySelectorAll('.finalizar').forEach(btn => {
                     btn.addEventListener('click', async (e) => {
                         const id = e.target.dataset.id;
                         const s = data.find(s => s.id == id);
+                        // Finalizar solicitud
                         await supabase
                             .from('solicitudes')
                             .update({ estado: 'finalizada', finished_at: new Date() })
                             .eq('id', id);
+                        // Insertar en servicios
                         await supabase
                             .from('servicios')
                             .insert({
@@ -254,15 +278,23 @@
             }
 
             // Suscripciones en tiempo real
-            supabase
-                .channel('solicitudes_conductor')
+            const channel = supabase
+                .channel('conductor_channel')
                 .on('postgres_changes', { 
                     event: 'INSERT', 
                     schema: 'public', 
                     table: 'solicitudes',
                     filter: profile.tipo === 'taxi' ? 'tipo_servicio=eq.taxi' : 'tipo_servicio=in.(mototaxi,delivery)'
-                }, () => {
-                    playSound();
+                }, (payload) => {
+                    // Nueva solicitud
+                    playNotificationSound();
+                    // Mostrar notificación del sistema
+                    if (Notification.permission === 'granted') {
+                        new Notification('Nueva solicitud', {
+                            body: `Tipo: ${payload.new.tipo_servicio} - Origen: ${payload.new.origen}`,
+                            icon: '/images/icon.png'
+                        });
+                    }
                     loadAvailableRequests();
                 })
                 .on('postgres_changes', {
@@ -270,16 +302,21 @@
                     schema: 'public',
                     table: 'solicitudes',
                     filter: `conductor_id=eq.${user.id}`
-                }, () => loadActiveServices())
+                }, () => {
+                    loadActiveServices();
+                })
                 .subscribe();
 
+            // Solicitar permiso para notificaciones
             if (Notification.permission === 'default') {
                 Notification.requestPermission();
             }
 
+            // Carga inicial
             await loadAvailableRequests();
             await loadActiveServices();
 
+            // Logout
             document.getElementById('logoutBtnConductor').addEventListener('click', async () => {
                 await supabase.auth.signOut();
                 localStorage.removeItem('taximoto_email');

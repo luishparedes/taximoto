@@ -112,7 +112,6 @@
             }
 
             async function loadSolicitudes() {
-                // Obtener solicitudes
                 const { data: solicitudes, error } = await supabase
                     .from('solicitudes')
                     .select('*')
@@ -218,17 +217,24 @@
                     container.appendChild(card);
                 });
 
+                // Eventos para cancelar
                 document.querySelectorAll('.btn-cancelar').forEach(btn => {
                     btn.addEventListener('click', async (e) => {
-                        if (!confirm('¿Cancelar solicitud?')) return;
+                        if (!confirm('¿Cancelar esta solicitud?')) return;
                         const id = e.target.dataset.id;
-                        await supabase
+                        const { error } = await supabase
                             .from('solicitudes')
                             .update({ estado: 'cancelada' })
                             .eq('id', id)
-                            .eq('usuario_id', user.id);
-                        showNotification('Solicitud cancelada', 'success');
-                        loadSolicitudes();
+                            .eq('usuario_id', user.id)
+                            .eq('estado', 'enviada'); // Solo cancelar si está enviada
+
+                        if (error) {
+                            alert('Error al cancelar: ' + error.message);
+                        } else {
+                            showNotification('Solicitud cancelada', 'success');
+                            loadSolicitudes();
+                        }
                     });
                 });
             }
@@ -265,19 +271,23 @@
 
             // Suscripciones en tiempo real
             supabase
-                .channel('solicitudes_usuario')
+                .channel('usuario_channel')
                 .on('postgres_changes', { 
                     event: '*', 
                     schema: 'public', 
                     table: 'solicitudes', 
                     filter: `usuario_id=eq.${user.id}` 
-                }, () => loadSolicitudes())
+                }, () => {
+                    loadSolicitudes();
+                })
                 .on('postgres_changes', {
                     event: 'INSERT',
                     schema: 'public',
                     table: 'notificaciones',
                     filter: `user_id=eq.${user.id}`
-                }, payload => showNotification(payload.new.mensaje, 'info'))
+                }, (payload) => {
+                    showNotification(payload.new.mensaje, 'info');
+                })
                 .subscribe();
 
             await loadSolicitudes();
