@@ -9,6 +9,8 @@
 <body>
     <div class="container">
         <h2 class="logo">Solicitar Servicio</h2>
+        <button class="btn-back" onclick="window.history.back()">← Volver</button>
+
         <form id="requestForm">
             <input type="hidden" id="tipoServicio" value="">
             <div class="form-group">
@@ -27,10 +29,40 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="js/taximoto.js"></script>
     <script>
-        // Leer parámetro tipo de la URL
         const urlParams = new URLSearchParams(window.location.search);
         const tipo = urlParams.get('tipo');
-        if(tipo) document.getElementById('tipoServicio').value = tipo;
+        if (tipo) document.getElementById('tipoServicio').value = tipo;
+
+        document.getElementById('requestForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const supabase = getSupabase();
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) {
+                window.location.href = 'login.html';
+                return;
+            }
+
+            const origen = document.getElementById('origen').value;
+            const destino = document.getElementById('destino').value;
+            const tipoServicio = document.getElementById('tipoServicio').value;
+
+            const { error } = await supabase
+                .from('solicitudes')
+                .insert({
+                    usuario_id: user.id,
+                    tipo_servicio: tipoServicio,
+                    origen,
+                    destino,
+                    estado: 'enviada'
+                });
+
+            if (error) {
+                alert('Error: ' + error.message);
+            } else {
+                alert('Solicitud enviada. Espera a que un conductor acepte.');
+                window.location.href = 'panel-usuario.html';
+            }
+        });
     </script>
 </body>
 </html>

@@ -9,7 +9,14 @@
 <body>
     <div class="container">
         <h2 class="logo">Registro</h2>
+        
+        <!-- Botón volver -->
+        <button class="btn-back" onclick="window.history.back()">← Volver</button>
+
         <form id="registerForm">
+            <!-- Honeypot: campo oculto para bots -->
+            <input type="text" name="bot_check" id="bot_check" style="display:none" tabindex="-1" autocomplete="off">
+
             <div class="form-group">
                 <label for="nombre">Nombre</label>
                 <input type="text" id="nombre" required>
@@ -35,9 +42,12 @@
                     <option value="comercio">Comercio</option>
                 </select>
             </div>
-            <div class="form-group">
+            <div class="form-group password-field">
                 <label for="password">Contraseña (mínimo 6 caracteres)</label>
-                <input type="password" id="password" minlength="6" required>
+                <div style="position: relative;">
+                    <input type="password" id="password" minlength="6" required>
+                    <span class="toggle-password" onclick="togglePassword('password')">👁️</span>
+                </div>
             </div>
             <div class="form-group checkbox-group">
                 <input type="checkbox" id="terms" required>
@@ -48,7 +58,7 @@
         <p style="text-align:center; margin-top:20px;">¿Ya tienes cuenta? <a href="login.html">Inicia sesión</a></p>
     </div>
 
-    <!-- Modal de términos (simple) -->
+    <!-- Modal de términos -->
     <div id="termsModal" style="display:none; position:fixed; background:white; padding:20px; border-radius:20px; max-width:90%; left:5%; top:20%; box-shadow:0 0 20px rgba(0,0,0,0.5); z-index:1000;">
         <h3>Términos y Condiciones</h3>
         <p>TaxiMoto2026 es una plataforma que conecta usuarios con conductores de la comunidad. TaxiMoto2026 no se hace responsable por daños, pérdidas o conflictos derivados del servicio. Los pagos se realizan directamente entre usuario y conductor.</p>
@@ -59,15 +69,63 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="js/taximoto.js"></script>
     <script>
+        // Función para mostrar/ocultar contraseña
+        window.togglePassword = (id) => {
+            const input = document.getElementById(id);
+            const type = input.type === 'password' ? 'text' : 'password';
+            input.type = type;
+        };
+
         document.addEventListener('DOMContentLoaded', function() {
+            // Honeypot: si el campo oculto tiene valor, es un bot
+            document.getElementById('registerForm').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const botCheck = document.getElementById('bot_check').value;
+                if (botCheck) {
+                    // Silenciosamente ignoramos (parece que el registro fue exitoso para el bot)
+                    alert('Registro exitoso. Revisa tu correo para confirmar.'); // Fake
+                    return;
+                }
+
+                // Capturar datos
+                const email = document.getElementById('email').value;
+                const password = document.getElementById('password').value;
+                const nombre = document.getElementById('nombre').value;
+                const apellido = document.getElementById('apellido').value;
+                const telefono = document.getElementById('telefono').value;
+                const tipo = document.getElementById('tipo').value;
+
+                try {
+                    // Registrar en Supabase
+                    const { data, error } = await getSupabase().auth.signUp({
+                        email,
+                        password,
+                    });
+                    if (error) throw error;
+
+                    // Actualizar perfil con datos adicionales
+                    const { error: updateError } = await getSupabase()
+                        .from('profiles')
+                        .update({ nombre, apellido, telefono, tipo })
+                        .eq('id', data.user.id);
+                    if (updateError) throw updateError;
+
+                    alert('Registro exitoso. Tu cuenta está inactiva. El administrador la activará pronto.');
+                    window.location.href = 'login.html';
+                } catch (err) {
+                    alert('Error: ' + err.message);
+                }
+            });
+
+            // Modal términos
             const modal = document.getElementById('termsModal');
             const overlay = document.getElementById('overlay');
-            document.getElementById('showTerms').addEventListener('click', function(e) {
+            document.getElementById('showTerms').addEventListener('click', (e) => {
                 e.preventDefault();
                 modal.style.display = 'block';
                 overlay.style.display = 'block';
             });
-            document.getElementById('closeTerms').addEventListener('click', function() {
+            document.getElementById('closeTerms').addEventListener('click', () => {
                 modal.style.display = 'none';
                 overlay.style.display = 'none';
             });

@@ -9,14 +9,20 @@
 <body>
     <div class="container">
         <h2 class="logo">Iniciar Sesión</h2>
+        
+        <button class="btn-back" onclick="window.history.back()">← Volver</button>
+
         <form id="loginForm">
             <div class="form-group">
                 <label for="email">Correo electrónico</label>
                 <input type="email" id="email" required>
             </div>
-            <div class="form-group">
+            <div class="form-group password-field">
                 <label for="password">Contraseña</label>
-                <input type="password" id="password" required>
+                <div style="position: relative;">
+                    <input type="password" id="password" required>
+                    <span class="toggle-password" onclick="togglePassword('password')">👁️</span>
+                </div>
             </div>
             <button type="submit" class="btn btn-primary" style="width:100%">Ingresar</button>
         </form>
@@ -26,5 +32,62 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="js/taximoto.js"></script>
+    <script>
+        window.togglePassword = (id) => {
+            const input = document.getElementById(id);
+            input.type = input.type === 'password' ? 'text' : 'password';
+        };
+
+        document.addEventListener('DOMContentLoaded', () => {
+            // Cargar email guardado
+            const savedEmail = localStorage.getItem('taximoto_email');
+            if (savedEmail) {
+                document.getElementById('email').value = savedEmail;
+            }
+
+            document.getElementById('loginForm').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const email = document.getElementById('email').value;
+                const password = document.getElementById('password').value;
+
+                try {
+                    const { data, error } = await getSupabase().auth.signInWithPassword({ email, password });
+                    if (error) throw error;
+
+                    // Guardar email en localStorage
+                    localStorage.setItem('taximoto_email', email);
+
+                    // Redirigir según perfil y estado
+                    const { data: profile } = await getSupabase()
+                        .from('profiles')
+                        .select('*')
+                        .eq('id', data.user.id)
+                        .single();
+
+                    // Verificar si es admin (por teléfono)
+                    const isAdmin = profile.telefono === '04125278450';
+
+                    if (isAdmin) {
+                        window.location.href = 'admin/dashboard.html';
+                    } else if (profile.estado !== 'activo') {
+                        alert('Tu cuenta está inactiva. Espera la activación del administrador.');
+                        window.location.href = 'index.html';
+                    } else if (['taxi', 'mototaxi'].includes(profile.tipo)) {
+                        window.location.href = 'conductor-dashboard.html';
+                    } else {
+                        // Usuario o comercio
+                        window.location.href = 'panel-usuario.html'; // Creamos este archivo después
+                    }
+                } catch (err) {
+                    alert('Credenciales inválidas: ' + err.message);
+                }
+            });
+
+            document.getElementById('forgotPassword').addEventListener('click', (e) => {
+                e.preventDefault();
+                alert('Contacta al administrador al 04125278450 para recuperar acceso.');
+            });
+        });
+    </script>
 </body>
 </html>

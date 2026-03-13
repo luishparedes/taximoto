@@ -69,6 +69,19 @@ body {
     transform: scale(0.97);
 }
 
+/* Botón volver (nuevo) */
+.btn-back {
+    background: none;
+    border: none;
+    color: #39FF14;
+    font-size: 1.2rem;
+    margin-bottom: 15px;
+    cursor: pointer;
+    text-align: left;
+    padding: 10px 0;
+    font-weight: 600;
+}
+
 /* Botones de servicio (animados) */
 .service-buttons {
     display: flex;
@@ -132,13 +145,32 @@ input, select, textarea {
 input:focus {
     outline: 2px solid #39FF14;
 }
+
+/* Grupo de checkbox */
 .checkbox-group {
-    flex-direction: row;
+    display: flex;
     align-items: center;
     gap: 10px;
 }
 .checkbox-group input {
     width: auto;
+}
+
+/* Campo de contraseña con ojo (nuevo) */
+.password-field {
+    position: relative;
+}
+.toggle-password {
+    position: absolute;
+    right: 15px;
+    top: 50%;
+    transform: translateY(-50%);
+    cursor: pointer;
+    font-size: 1.2rem;
+    user-select: none;
+    background: transparent;
+    border: none;
+    padding: 5px;
 }
 
 /* Estado de cuenta */
@@ -159,4 +191,59 @@ input:focus {
     margin-bottom: 15px;
     box-shadow: 0 2px 5px rgba(0,0,0,0.1);
     border-left: 5px solid #39FF14;
+}
+.solicitud-card p {
+    margin: 5px 0;
+}
+.solicitud-card button {
+    margin-top: 10px;
+    width: 100%;
+}
+
+/* Tablas para admin (nuevo) */
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 20px;
+    font-size: 0.9rem;
+    background: white;
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+th, td {
+    border: 1px solid #ddd;
+    padding: 8px;
+    text-align: left;
+}
+th {
+    background-color: #39FF14;
+    color: black;
+    font-weight: 600;
+}
+tr:nth-child(even) {
+    background-color: #f2f2f2;
+}
+
+/* Botones dentro de tablas */
+td button {
+    padding: 5px 10px;
+    font-size: 0.8rem;
+}
+
+/* Mejoras para móvil */
+@media (max-width: 480px) {
+    .btn-group {
+        flex-direction: column;
+        gap: 10px;
+    }
+    .btn {
+        width: 100%;
+    }
+    table {
+        font-size: 0.8rem;
+    }
+    th, td {
+        padding: 5px;
+    }
 }

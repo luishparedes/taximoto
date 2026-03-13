@@ -9,6 +9,9 @@
 <body>
     <div class="container">
         <h2 class="logo">Panel Administrador</h2>
+        <button class="btn-back" onclick="window.location.href='../index.html'">← Inicio</button>
+        <button id="logoutBtnAdmin" class="btn btn-secondary" style="margin-bottom:20px;">Cerrar sesión</button>
+
         <div id="adminControls">
             <button class="btn btn-primary" id="verUsuarios">Ver Usuarios</button>
             <button class="btn btn-primary" id="verSolicitudes">Ver Solicitudes</button>
@@ -19,5 +22,123 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="../js/taximoto.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', async () => {
+            const supabase = getSupabase();
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) {
+                window.location.href = '../login.html';
+                return;
+            }
+
+            // Verificar que es admin por teléfono
+            const { data: profile } = await supabase
+                .from('profiles')
+                .select('telefono')
+                .eq('id', user.id)
+                .single();
+
+            if (profile.telefono !== '04125278450') {
+                alert('Acceso denegado');
+                window.location.href = '../index.html';
+                return;
+            }
+
+            // Función para cargar usuarios
+            document.getElementById('verUsuarios').addEventListener('click', async () => {
+                const { data, error } = await supabase
+                    .from('profiles')
+                    .select('*')
+                    .order('created_at');
+                if (error) alert(error.message);
+                else {
+                    let html = '<h3>Usuarios</h3><table><tr><th>Email</th><th>Nombre</th><th>Tipo</th><th>Estado</th><th>Acción</th></tr>';
+                    data.forEach(u => {
+                        html += `<tr>
+                            <td>${u.email}</td>
+                            <td>${u.nombre} ${u.apellido}</td>
+                            <td>${u.tipo}</td>
+                            <td>${u.estado}</td>
+                            <td><button class="activar" data-id="${u.id}" data-estado="${u.estado}">${u.estado === 'inactivo' ? 'Activar' : 'Desactivar'}</button></td>
+                        </tr>`;
+                    });
+                    html += '</table>';
+                    document.getElementById('adminContent').innerHTML = html;
+
+                    document.querySelectorAll('.activar').forEach(btn => {
+                        btn.addEventListener('click', async (e) => {
+                            const id = e.target.dataset.id;
+                            const nuevoEstado = e.target.dataset.estado === 'inactivo' ? 'activo' : 'inactivo';
+                            const { error } = await supabase
+                                .from('profiles')
+                                .update({ estado: nuevoEstado })
+                                .eq('id', id);
+                            if (error) alert(error.message);
+                            else {
+                                e.target.closest('tr').querySelector('td:nth-child(4)').innerText = nuevoEstado;
+                                e.target.dataset.estado = nuevoEstado;
+                                e.target.innerText = nuevoEstado === 'inactivo' ? 'Activar' : 'Desactivar';
+                            }
+                        });
+                    });
+                }
+            });
+
+            // Ver solicitudes
+            document.getElementById('verSolicitudes').addEventListener('click', async () => {
+                const { data, error } = await supabase
+                    .from('solicitudes')
+                    .select('*, profiles!solicitudes_usuario_id_fkey(email)')
+                    .order('created_at', { ascending: false });
+                if (error) alert(error.message);
+                else {
+                    let html = '<h3>Solicitudes</h3><table><tr><th>ID</th><th>Usuario</th><th>Tipo</th><th>Origen</th><th>Destino</th><th>Estado</th><th>Conductor</th></tr>';
+                    data.forEach(s => {
+                        html += `<tr>
+                            <td>${s.id}</td>
+                            <td>${s.profiles?.email || s.usuario_id}</td>
+                            <td>${s.tipo_servicio}</td>
+                            <td>${s.origen}</td>
+                            <td>${s.destino}</td>
+                            <td>${s.estado}</td>
+                            <td>${s.conductor_id || 'N/A'}</td>
+                        </tr>`;
+                    });
+                    html += '</table>';
+                    document.getElementById('adminContent').innerHTML = html;
+                }
+            });
+
+            // Ver conductores (perfiles tipo taxi/mototaxi)
+            document.getElementById('verConductores').addEventListener('click', async () => {
+                const { data, error } = await supabase
+                    .from('profiles')
+                    .select('*')
+                    .in('tipo', ['taxi', 'mototaxi'])
+                    .order('created_at');
+                if (error) alert(error.message);
+                else {
+                    let html = '<h3>Conductores</h3><table><tr><th>Email</th><th>Nombre</th><th>Tipo</th><th>Estado</th></tr>';
+                    data.forEach(c => {
+                        html += `<tr>
+                            <td>${c.email}</td>
+                            <td>${c.nombre} ${c.apellido}</td>
+                            <td>${c.tipo}</td>
+                            <td>${c.estado}</td>
+                        </tr>`;
+                    });
+                    html += '</table>';
+                    document.getElementById('adminContent').innerHTML = html;
+                }
+            });
+
+            // Logout
+            document.getElementById('logoutBtnAdmin').addEventListener('click', async () => {
+                await supabase.auth.signOut();
+                localStorage.removeItem('taximoto_email');
+                window.location.href = '../index.html';
+            });
+        });
+    </script>
 </body>
 </html>

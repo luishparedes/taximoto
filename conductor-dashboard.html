@@ -9,14 +9,216 @@
 <body>
     <div class="container">
         <h2 class="logo">Panel Conductor</h2>
-        <div id="conductorInfo"></div>
+        <button class="btn-back" onclick="window.location.href='index.html'">← Inicio</button>
+        <button id="logoutBtnConductor" class="btn btn-secondary" style="margin-bottom:20px;">Cerrar sesión</button>
+
         <h3>Solicitudes disponibles</h3>
         <div id="solicitudesDisponibles"></div>
+
         <h3>Mis servicios activos</h3>
         <div id="misServicios"></div>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="js/taximoto.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', async () => {
+            const supabase = getSupabase();
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) {
+                window.location.href = 'login.html';
+                return;
+            }
+
+            // Obtener perfil del conductor
+            const { data: profile, error: profileError } = await supabase
+                .from('profiles')
+                .select('tipo, estado')
+                .eq('id', user.id)
+                .single();
+
+            if (profileError || profile.estado !== 'activo' || !['taxi', 'mototaxi'].includes(profile.tipo)) {
+                alert('No tienes permiso para acceder.');
+                window.location.href = 'index.html';
+                return;
+            }
+
+            // Cargar solicitudes disponibles según el tipo
+            async function loadAvailableRequests() {
+                let query = supabase
+                    .from('solicitudes')
+                    .select('*')
+                    .eq('estado', 'enviada');
+                
+                if (profile.tipo === 'taxi') {
+                    query = query.eq('tipo_servicio', 'taxi');
+                } else if (profile.tipo === 'mototaxi') {
+                    query = query.in('tipo_servicio', ['mototaxi', 'delivery']);
+                }
+
+                const { data, error } = await query.order('created_at', { ascending: false });
+                if (error) console.error(error);
+                else renderRequests(data);
+            }
+
+            function renderRequests(requests) {
+                const container = document.getElementById('solicitudesDisponibles');
+                container.innerHTML = '';
+                if (requests.length === 0) {
+                    container.innerHTML = '<p>No hay solicitudes por ahora.</p>';
+                    return;
+                }
+                requests.forEach(req => {
+                    const card = document.createElement('div');
+                    card.className = 'solicitud-card';
+                    card.innerHTML = `
+                        <p><strong>Usuario:</strong> ${req.usuario_id}</p>
+                        <p><strong>Origen:</strong> ${req.origen}</p>
+                        <p><strong>Destino:</strong> ${req.destino}</p>
+                        <p><strong>Tipo:</strong> ${req.tipo_servicio}</p>
+                        <button class="btn btn-primary aceptar" data-id="${req.id}">Aceptar</button>
+                    `;
+                    container.appendChild(card);
+                });
+
+                document.querySelectorAll('.aceptar').forEach(btn => {
+                    btn.addEventListener('click', async (e) => {
+                        const solicitudId = e.target.dataset.id;
+                        // Actualizar solicitud
+                        const { error } = await supabase
+                            .from('solicitudes')
+                            .update({ 
+                                estado: 'aceptada', 
+                                conductor_id: user.id, 
+                                accepted_at: new Date() 
+                            })
+                            .eq('id', solicitudId);
+                        if (error) {
+                            alert('Error: ' + error.message);
+                        } else {
+                            // Crear notificación para el usuario
+                            await supabase
+                                .from('notificaciones')
+                                .insert({
+                                    user_id: req.usuario_id,
+                                    mensaje: 'Tu solicitud fue aceptada. El conductor está en camino.'
+                                });
+                            loadAvailableRequests();
+                            loadActiveServices();
+                        }
+                    });
+                });
+            }
+
+            // Cargar servicios activos (aceptados por este conductor)
+            async function loadActiveServices() {
+                const { data, error } = await supabase
+                    .from('solicitudes')
+                    .select('*')
+                    .eq('conductor_id', user.id)
+                    .in('estado', ['aceptada', 'conductor_en_camino']);
+                if (error) console.error(error);
+                else renderActiveServices(data);
+            }
+
+            function renderActiveServices(services) {
+                const container = document.getElementById('misServicios');
+                container.innerHTML = '';
+                if (services.length === 0) {
+                    container.innerHTML = '<p>No tienes servicios activos.</p>';
+                    return;
+                }
+                services.forEach(svc => {
+                    const card = document.createElement('div');
+                    card.className = 'solicitud-card';
+                    card.innerHTML = `
+                        <p><strong>Cliente:</strong> ${svc.usuario_id}</p>
+                        <p><strong>Origen:</strong> ${svc.origen}</p>
+                        <p><strong>Destino:</strong> ${svc.destino}</p>
+                        <p><strong>Estado:</strong> ${svc.estado}</p>
+                        ${svc.estado === 'aceptada' ? 
+                            '<button class="btn btn-secondary iniciar" data-id="'+svc.id+'">Iniciar viaje</button>' : ''}
+                        ${svc.estado === 'conductor_en_camino' ? 
+                            '<button class="btn btn-secondary finalizar" data-id="'+svc.id+'">Finalizar</button>' : ''}
+                    `;
+                    container.appendChild(card);
+                });
+
+                // Botones de iniciar
+                document.querySelectorAll('.iniciar').forEach(btn => {
+                    btn.addEventListener('click', async (e) => {
+                        const id = e.target.dataset.id;
+                        await supabase
+                            .from('solicitudes')
+                            .update({ estado: 'conductor_en_camino' })
+                            .eq('id', id);
+                        loadActiveServices();
+                    });
+                });
+
+                // Botones de finalizar
+                document.querySelectorAll('.finalizar').forEach(btn => {
+                    btn.addEventListener('click', async (e) => {
+                        const id = e.target.dataset.id;
+                        // Actualizar solicitud
+                        await supabase
+                            .from('solicitudes')
+                            .update({ estado: 'finalizada', finished_at: new Date() })
+                            .eq('id', id);
+                        // Crear registro en servicios
+                        const { data: sol } = await supabase
+                            .from('solicitudes')
+                            .select('*')
+                            .eq('id', id)
+                            .single();
+                        await supabase
+                            .from('servicios')
+                            .insert({
+                                solicitud_id: id,
+                                usuario_id: sol.usuario_id,
+                                conductor_id: user.id,
+                                tipo_servicio: sol.tipo_servicio,
+                                origen: sol.origen,
+                                destino: sol.destino,
+                                created_at: sol.created_at,
+                                finished_at: new Date()
+                            });
+                        // Notificar al usuario
+                        await supabase
+                            .from('notificaciones')
+                            .insert({
+                                user_id: sol.usuario_id,
+                                mensaje: 'Tu viaje ha finalizado. Califica al conductor.'
+                            });
+                        loadActiveServices();
+                        loadAvailableRequests();
+                    });
+                });
+            }
+
+            // Suscripciones en tiempo real
+            const subscription = supabase
+                .channel('solicitudes_conductor')
+                .on('postgres_changes', { 
+                    event: 'INSERT', 
+                    schema: 'public', 
+                    table: 'solicitudes',
+                    filter: profile.tipo === 'taxi' ? 'tipo_servicio=eq.taxi' : 'tipo_servicio=in.(mototaxi,delivery)'
+                }, payload => {
+                    loadAvailableRequests();
+                })
+                .subscribe();
+
+            loadAvailableRequests();
+            loadActiveServices();
+
+            // Logout
+            document.getElementById('logoutBtnConductor').addEventListener('click', async () => {
+                await supabase.auth.signOut();
+                localStorage.removeItem('taximoto_email');
+                window.location.href = 'index.html';
+            });
+        });
+    </script>
 </body>
 </html>

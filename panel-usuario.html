@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mi Panel - TaxiMoto2026</title>
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+    <div class="container">
+        <h2 class="logo">Bienvenido</h2>
+        <button class="btn-back" onclick="window.location.href='index.html'">← Inicio</button>
+        <button id="logoutBtnPanel" class="btn btn-secondary" style="margin-bottom:20px;">Cerrar sesión</button>
+
+        <div class="service-buttons">
+            <button class="btn-service" data-service="taxi">🚖 Pedir Taxi</button>
+            <button class="btn-service" data-service="mototaxi">🛵 Pedir Mototaxi</button>
+            <button class="btn-service" data-service="delivery">📦 Delivery</button>
+        </div>
+
+        <h3>Mis solicitudes activas</h3>
+        <div id="misSolicitudes"></div>
+
+        <h3>Historial</h3>
+        <div id="historial"></div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="js/taximoto.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', async () => {
+            const supabase = getSupabase();
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) {
+                window.location.href = 'login.html';
+                return;
+            }
+
+            // Verificar estado activo
+            const { data: profile } = await supabase
+                .from('profiles')
+                .select('estado')
+                .eq('id', user.id)
+                .single();
+            if (profile.estado !== 'activo') {
+                alert('Tu cuenta está inactiva. Contacta al administrador.');
+                window.location.href = 'index.html';
+                return;
+            }
+
+            // Botones de servicio
+            document.querySelectorAll('.btn-service').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const service = e.target.dataset.service;
+                    window.location.href = `request.html?tipo=${service}`;
+                });
+            });
+
+            // Cargar solicitudes activas (no finalizadas)
+            async function loadSolicitudes() {
+                const { data, error } = await supabase
+                    .from('solicitudes')
+                    .select('*')
+                    .eq('usuario_id', user.id)
+                    .in('estado', ['enviada', 'aceptada', 'conductor_en_camino'])
+                    .order('created_at', { ascending: false });
+                if (error) console.error(error);
+                else renderSolicitudes(data);
+            }
+
+            function renderSolicitudes(solicitudes) {
+                const container = document.getElementById('misSolicitudes');
+                container.innerHTML = '';
+                if (solicitudes.length === 0) {
+                    container.innerHTML = '<p>No tienes solicitudes activas.</p>';
+                    return;
+                }
+                solicitudes.forEach(s => {
+                    const card = document.createElement('div');
+                    card.className = 'solicitud-card';
+                    card.innerHTML = `
+                        <p><strong>Tipo:</strong> ${s.tipo_servicio}</p>
+                        <p><strong>Origen:</strong> ${s.origen}</p>
+                        <p><strong>Destino:</strong> ${s.destino}</p>
+                        <p><strong>Estado:</strong> ${s.estado}</p>
+                        ${s.conductor_id ? `<p><strong>Conductor asignado</strong></p>` : ''}
+                        ${s.estado === 'aceptada' ? '<p>El conductor va en camino</p>' : ''}
+                    `;
+                    container.appendChild(card);
+                });
+            }
+
+            // Suscripción en tiempo real
+            const subscription = supabase
+                .channel('solicitudes_usuario')
+                .on('postgres_changes', { 
+                    event: '*', 
+                    schema: 'public', 
+                    table: 'solicitudes', 
+                    filter: `usuario_id=eq.${user.id}` 
+                }, payload => {
+                    loadSolicitudes();
+                })
+                .subscribe();
+
+            loadSolicitudes();
+
+            // Logout
+            document.getElementById('logoutBtnPanel').addEventListener('click', async () => {
+                await supabase.auth.signOut();
+                localStorage.removeItem('taximoto_email');
+                window.location.href = 'index.html';
+            });
+        });
+    </script>
+</body>
+</html>
