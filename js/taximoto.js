@@ -16,43 +16,135 @@ window.getSupabase = function() {
     return supabaseInstance;
 };
 
-// 3. INTEGRACIÓN DE TIEMPO REAL (Refresco automático y Sonido)
-// Este bloque se ejecuta solo cuando la página termina de cargar
+// 3. SISTEMA REALTIME (solicitudes y notificaciones)
 document.addEventListener('DOMContentLoaded', () => {
+
     const supabase = window.getSupabase();
-    
-    if (supabase) {
-        console.log("Sistema Realtime activado. Esperando cambios...");
 
-        supabase
-            .channel('cambios-solicitudes')
-            .on(
-                'postgres_changes', 
-                { event: '*', schema: 'public', table: 'solicitudes' }, 
-                (payload) => {
-                    console.log('Cambio detectado en solicitudes:', payload);
+    if (!supabase) return;
 
-                    // Si alguien creó una solicitud nueva (INSERT), suena la alerta
-                    if (payload.eventType === 'INSERT') {
-                        reproducirAlertaSonora();
-                    }
+    console.log("Sistema Realtime activado...");
 
-                    // Esperamos 1 segundo para que la base de datos procese y refrescamos la app
-                    // Esto evita que tengas que darle a F5 manualmente
-                    setTimeout(() => {
-                        window.location.reload();
-                    }, 1000);
-                }
-            )
-            .subscribe();
-    }
+    // Escuchar cambios en solicitudes
+    supabase
+    .channel('cambios-solicitudes')
+    .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'solicitudes' },
+        (payload) => {
+
+            console.log('Cambio detectado en solicitudes:', payload);
+
+            // Sonido cuando llega nueva solicitud
+            if (payload.eventType === 'INSERT') {
+                reproducirAlertaSonora();
+            }
+
+            // Recargar pantalla
+            setTimeout(() => {
+                window.location.reload();
+            }, 1000);
+
+        }
+    )
+    .subscribe();
+
+
+    // Escuchar notificaciones en tiempo real
+    supabase
+    .channel('notificaciones-usuario')
+    .on(
+        'postgres_changes',
+        {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'notificaciones'
+        },
+        (payload) => {
+
+            console.log('Nueva notificación:', payload);
+
+            if(payload.new.mensaje){
+                alert(payload.new.mensaje);
+            }
+
+            reproducirAlertaSonora();
+
+        }
+    )
+    .subscribe();
+
 });
 
-// 4. Función para la alerta sonora
+
+// 4. Función sonido alerta
 function reproducirAlertaSonora() {
-    // Usamos un sonido de alerta profesional (puedes cambiar este link por un .mp3 propio)
+
     const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2358/2358-preview.mp3');
-    audio.play().catch(error => {
-        console.log("El sonido no sonará hasta que hagas clic una vez en cualquier parte de la pantalla (regla del navegador).");
+
+    audio.play().catch(() => {
+        console.log("El sonido se activará cuando el usuario interactúe con la página.");
     });
+
 }
+
+
+// 5. SISTEMA FAVORITOS
+window.agregarFavorito = async function(conductorId) {
+
+    const supabase = window.getSupabase();
+
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (!user) {
+        alert("Debes iniciar sesión.");
+        return;
+    }
+
+    const { error } = await supabase
+    .from('favoritos')
+    .insert({
+        usuario_id: user.id,
+        conductor_id: conductorId
+    });
+
+    if (error) {
+        console.error(error);
+        alert("No se pudo agregar a favoritos.");
+    } else {
+        alert("⭐ Conductor agregado a favoritos.");
+    }
+
+};
+
+
+// 6. SISTEMA CALIFICACIONES
+window.calificarConductor = async function(servicioId, conductorId, puntuacion, comentario) {
+
+    const supabase = window.getSupabase();
+
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (!user) {
+        alert("Debes iniciar sesión.");
+        return;
+    }
+
+    const { error } = await supabase
+    .from('calificaciones')
+    .insert({
+        servicio_id: servicioId,
+        usuario_id: user.id,
+        conductor_id: conductorId,
+        puntuacion: puntuacion,
+        comentario: comentario
+    });
+
+    if (error) {
+        console.error(error);
+        alert("No se pudo registrar la calificación.");
+    } else {
+        alert("⭐ Gracias por tu calificación.");
+    }
+
+};

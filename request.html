@@ -5,6 +5,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Solicitar Servicio - TaxiMoto2026</title>
     <link rel="stylesheet" href="css/styles.css">
+    <style>
+        .btn-favorito { background-color:#ff9800; color:white; border:none; padding:5px 10px; border-radius:20px; cursor:pointer; margin-left:5px; }
+        .btn-favorito.agregado { background-color:#4caf50; }
+        .estrellas { display:flex; gap:5px; margin-top:5px; }
+        .estrella { cursor:pointer; font-size:1.2rem; color:#ccc; }
+        .estrella.seleccionada { color:#ffc107; }
+    </style>
 </head>
 <body>
     <div class="container">
@@ -23,44 +30,108 @@
             </div>
             <button type="submit" class="btn btn-primary" style="width:100%">Enviar Solicitud</button>
         </form>
+
+        <div id="servicioInfo" style="margin-top:20px;"></div>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="js/taximoto.js"></script>
     <script>
-        const urlParams = new URLSearchParams(window.location.search);
-        const tipo = urlParams.get('tipo');
-        if (tipo) document.getElementById('tipoServicio').value = tipo;
-
-        document.getElementById('requestForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
+        document.addEventListener('DOMContentLoaded', async () => {
             const supabase = getSupabase();
+            const urlParams = new URLSearchParams(window.location.search);
+            const tipo = urlParams.get('tipo');
+            if (tipo) document.getElementById('tipoServicio').value = tipo;
+
             const { data: { user } } = await supabase.auth.getUser();
-            if (!user) {
-                window.location.href = 'login.html';
-                return;
-            }
+            if(!user){ window.location.href='login.html'; return; }
 
-            const origen = document.getElementById('origen').value;
-            const destino = document.getElementById('destino').value;
-            const tipoServicio = document.getElementById('tipoServicio').value;
+            // --- Enviar solicitud ---
+            document.getElementById('requestForm').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const origen = document.getElementById('origen').value;
+                const destino = document.getElementById('destino').value;
+                const tipoServicio = document.getElementById('tipoServicio').value;
 
-            const { error } = await supabase
-                .from('solicitudes')
-                .insert({
-                    usuario_id: user.id,
+                const { data, error } = await supabase.from('solicitudes').insert({
+                    usuario_id:user.id,
                     tipo_servicio: tipoServicio,
                     origen,
                     destino,
                     estado: 'enviada'
+                }).select().single();
+
+                if(error){ alert('Error: '+error.message); return; }
+                alert('Solicitud enviada');
+                window.location.href='panel-usuario.html';
+            });
+
+            // --- Mostrar info de conductor y botones ---
+            async function loadSolicitudActiva() {
+                const { data: solicitudes } = await supabase.from('solicitudes')
+                    .select('*')
+                    .eq('usuario_id', user.id)
+                    .in('estado',['aceptada','conductor_en_camino'])
+                    .order('created_at',{ascending:false})
+                    .limit(1);
+
+                if(!solicitudes || solicitudes.length===0) return;
+
+                const s = solicitudes[0];
+                if(!s.conductor_id) return;
+
+                const { data: conductor } = await supabase.from('profiles')
+                    .select('id, nombre, apellido, telefono')
+                    .eq('id', s.conductor_id)
+                    .single();
+
+                const container = document.getElementById('servicioInfo');
+                container.innerHTML = `
+                    <div class="conductor-info">
+                        <strong>👤 Conductor:</strong> ${conductor.nombre} ${conductor.apellido}<br>
+                        <strong>📱 Teléfono:</strong> ${conductor.telefono || 'No disponible'}<br>
+                        <div style="display:flex; gap:10px; margin-top:10px;">
+                            <a href="tel:${conductor.telefono}" class="btn btn-primary" style="flex:1;padding:10px;">📞 Llamar</a>
+                            <a href="https://wa.me/${conductor.telefono?.replace(/\D/g,'')}" class="btn btn-secondary" style="flex:1;padding:10px;">💬 WhatsApp</a>
+                            <button class="btn-favorito" data-conductor="${conductor.id}">⭐ Agregar a favoritos</button>
+                        </div>
+                        <div class="estrellas" data-servicio="${s.id}"></div>
+                    </div>
+                `;
+
+                // Favoritos
+                const favBtn = container.querySelector('.btn-favorito');
+                favBtn.addEventListener('click', async ()=>{
+                    const { error } = await supabase.from('favoritos').upsert({usuario_id:user.id, conductor_id:conductor.id});
+                    if(!error){ favBtn.classList.add('agregado'); alert('Conductor agregado a favoritos'); }
                 });
 
-            if (error) {
-                alert('Error: ' + error.message);
-            } else {
-                alert('Solicitud enviada');
-                window.location.href = 'panel-usuario.html';
+                // Calificaciones
+                const starDiv = container.querySelector('.estrellas');
+                const { data: calif } = await supabase.from('calificaciones').select('puntuacion').eq('servicio_id', s.id).eq('usuario_id', user.id).single();
+                const puntuacion = calif?.puntuacion || 0;
+
+                for(let i=1;i<=5;i++){
+                    const star = document.createElement('span');
+                    star.className = 'estrella'+(i<=puntuacion?' seleccionada':'');
+                    star.innerHTML = '&#9733;';
+                    star.dataset.valor=i;
+                    star.addEventListener('click', async ()=>{
+                        await supabase.from('calificaciones').upsert({
+                            servicio_id: s.id,
+                            usuario_id: user.id,
+                            conductor_id: conductor.id,
+                            puntuacion: i
+                        });
+                        starDiv.querySelectorAll('.estrella').forEach(s=>s.classList.remove('seleccionada'));
+                        star.classList.add('seleccionada');
+                        alert('Calificación registrada');
+                    });
+                    starDiv.appendChild(star);
+                }
             }
+
+            await loadSolicitudActiva();
         });
     </script>
 </body>
