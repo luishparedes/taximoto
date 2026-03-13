@@ -7,7 +7,6 @@
     <link rel="stylesheet" href="css/styles.css">
     <style>
         .notification-sound { display: none; }
-        .solicitud-card { position: relative; }
         .solicitud-card.nueva {
             animation: highlight 1s ease;
             border-left: 5px solid #ff4444;
@@ -26,8 +25,6 @@
         .estado-enviada { background-color: #ffc107; color: #000; }
         .estado-aceptada { background-color: #17a2b8; color: #fff; }
         .estado-camino { background-color: #007bff; color: #fff; }
-        .estado-finalizada { background-color: #28a745; color: #fff; }
-        .estado-cancelada { background-color: #dc3545; color: #fff; }
     </style>
 </head>
 <body>
@@ -36,20 +33,19 @@
         <button class="btn-back" onclick="window.location.href='index.html'">← Inicio</button>
         <button id="logoutBtnConductor" class="btn btn-secondary" style="margin-bottom:20px;">Cerrar sesión</button>
 
-        <!-- Audio para notificaciones -->
-        <audio id="notificationSound" class="notification-sound" preload="auto">
+        <audio id="notificationSound" preload="auto">
             <source src="https://www.soundjay.com/misc/sounds/bell-ringing-05.mp3" type="audio/mpeg">
         </audio>
 
         <div id="conductorInfo" style="margin-bottom:20px; padding:15px; background:#f0f0f0; border-radius:30px;">
-            Cargando información del conductor...
+            Cargando...
         </div>
 
         <h3>📋 Solicitudes disponibles</h3>
-        <div id="solicitudesDisponibles"></div>
+        <div id="solicitudesDisponibles">Cargando...</div>
 
         <h3>🚗 Mis servicios activos</h3>
-        <div id="misServicios"></div>
+        <div id="misServicios">Cargando...</div>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -66,220 +62,160 @@
             }
 
             // Obtener perfil del conductor
-            const { data: profile, error: profileError } = await supabase
+            const { data: profile } = await supabase
                 .from('profiles')
                 .select('tipo, estado, nombre, apellido, email, telefono')
                 .eq('id', user.id)
                 .single();
 
-            if (profileError || profile.estado !== 'activo' || !['taxi', 'mototaxi'].includes(profile.tipo)) {
-                alert('No tienes permiso para acceder o tu cuenta está inactiva.');
+            if (!profile || profile.estado !== 'activo' || !['taxi', 'mototaxi'].includes(profile.tipo)) {
+                alert('Acceso denegado');
                 window.location.href = 'index.html';
                 return;
             }
 
-            // Mostrar info del conductor
             document.getElementById('conductorInfo').innerHTML = `
-                <strong>👤 ${profile.nombre} ${profile.apellido}</strong><br>
+                <strong>👤 ${profile.nombre || ''} ${profile.apellido || ''}</strong><br>
                 <span>📧 ${profile.email}</span><br>
                 <span>📱 ${profile.telefono || 'No registrado'}</span><br>
                 <span>🚖 Tipo: ${profile.tipo}</span>
             `;
 
-            // Función para reproducir sonido (con manejo de autoplay)
-            function playNotificationSound() {
-                notificationSound.play().catch(e => {
-                    console.log('Autoplay bloqueado, esperando interacción');
-                    // Mostrar indicador visual si no se puede reproducir
-                });
+            function playSound() {
+                notificationSound.play().catch(() => {});
             }
 
-            // Cargar solicitudes disponibles según el tipo
+            async function getUsuarios(ids) {
+                if (!ids.length) return {};
+                const { data } = await supabase
+                    .from('profiles')
+                    .select('id, nombre, apellido, telefono')
+                    .in('id', ids);
+                const map = {};
+                (data || []).forEach(u => map[u.id] = u);
+                return map;
+            }
+
             async function loadAvailableRequests() {
                 let query = supabase
                     .from('solicitudes')
-                    .select(`
-                        *,
-                        usuario:usuario_id (
-                            id,
-                            email,
-                            nombre,
-                            apellido,
-                            telefono
-                        )
-                    `)
+                    .select('*')
                     .eq('estado', 'enviada');
                 
                 if (profile.tipo === 'taxi') {
                     query = query.eq('tipo_servicio', 'taxi');
-                } else if (profile.tipo === 'mototaxi') {
+                } else {
                     query = query.in('tipo_servicio', ['mototaxi', 'delivery']);
                 }
 
-                const { data, error } = await query.order('created_at', { ascending: false });
-                if (error) console.error(error);
-                else renderRequests(data);
-            }
+                const { data } = await query.order('created_at', { ascending: false });
+                if (!data) return;
 
-            function renderRequests(requests) {
+                const userIds = data.map(s => s.usuario_id);
+                const usuariosMap = await getUsuarios(userIds);
+
                 const container = document.getElementById('solicitudesDisponibles');
-                const oldCount = container.children.length;
-                
                 container.innerHTML = '';
                 
-                if (requests.length === 0) {
-                    container.innerHTML = '<p style="text-align:center; color:#666;">No hay solicitudes por ahora.</p>';
+                if (data.length === 0) {
+                    container.innerHTML = '<p style="text-align:center; color:#666;">No hay solicitudes</p>';
                     return;
                 }
 
-                requests.forEach(req => {
-                    const usuario = req.usuario || { nombre: 'Usuario', apellido: '', telefono: 'N/A' };
-                    const nombreCompleto = `${usuario.nombre || ''} ${usuario.apellido || ''}`.trim() || 'Usuario';
-
-                    const card = document.createElement('div');
-                    card.className = `solicitud-card ${oldCount === 0 ? 'nueva' : ''}`;
+                data.forEach(s => {
+                    const u = usuariosMap[s.usuario_id] || { nombre: 'Usuario', telefono: 'N/A' };
+                    card = document.createElement('div');
+                    card.className = 'solicitud-card nueva';
                     card.innerHTML = `
-                        <div style="display:flex; justify-content:space-between; align-items:start;">
+                        <div style="display:flex; justify-content:space-between;">
                             <div>
-                                <strong style="font-size:1.2rem;">👤 ${nombreCompleto}</strong>
-                                <br>
-                                <span style="color:#666;">📱 ${usuario.telefono || 'No disponible'}</span>
+                                <strong>👤 ${u.nombre || ''} ${u.apellido || ''}</strong><br>
+                                <span>📱 ${u.telefono || 'N/A'}</span>
                             </div>
                             <span class="estado-badge estado-enviada">NUEVA</span>
                         </div>
-                        <hr style="margin:10px 0;">
-                        <p><strong>📍 Origen:</strong> ${req.origen}</p>
-                        <p><strong>🏁 Destino:</strong> ${req.destino}</p>
-                        <p><strong>🛵 Tipo:</strong> ${req.tipo_servicio}</p>
-                        <button class="btn btn-primary aceptar" data-id="${req.id}" style="width:100%; margin-top:10px;">
-                            ✅ Aceptar viaje
-                        </button>
+                        <hr>
+                        <p><strong>📍 Origen:</strong> ${s.origen}</p>
+                        <p><strong>🏁 Destino:</strong> ${s.destino}</p>
+                        <p><strong>🛵 Tipo:</strong> ${s.tipo_servicio}</p>
+                        <button class="btn btn-primary aceptar" data-id="${s.id}" style="width:100%;">✅ Aceptar</button>
                     `;
                     container.appendChild(card);
                 });
 
-                // Agregar event listeners a los botones aceptar
                 document.querySelectorAll('.aceptar').forEach(btn => {
                     btn.addEventListener('click', async (e) => {
-                        const solicitudId = e.target.dataset.id;
-                        const btnElement = e.target;
+                        const id = e.target.dataset.id;
+                        const solicitud = data.find(s => s.id == id);
                         
-                        // Deshabilitar botón temporalmente
-                        btnElement.disabled = true;
-                        btnElement.textContent = 'Procesando...';
+                        e.target.disabled = true;
+                        e.target.textContent = 'Procesando...';
 
-                        try {
-                            // Actualizar solicitud
-                            const { error } = await supabase
-                                .from('solicitudes')
-                                .update({ 
-                                    estado: 'aceptada', 
-                                    conductor_id: user.id, 
-                                    accepted_at: new Date() 
-                                })
-                                .eq('id', solicitudId)
-                                .eq('estado', 'enviada'); // Solo si sigue enviada
+                        const { error } = await supabase
+                            .from('solicitudes')
+                            .update({ 
+                                estado: 'aceptada', 
+                                conductor_id: user.id, 
+                                accepted_at: new Date() 
+                            })
+                            .eq('id', id)
+                            .eq('estado', 'enviada');
 
-                            if (error) throw error;
-
-                            // Obtener datos del usuario para la notificación
-                            const solicitud = requests.find(r => r.id == solicitudId);
-                            
-                            // Crear notificación para el usuario
+                        if (!error) {
                             await supabase
                                 .from('notificaciones')
                                 .insert({
                                     user_id: solicitud.usuario_id,
-                                    mensaje: `✅ Tu solicitud de ${solicitud.tipo_servicio} fue aceptada por ${profile.nombre}. El conductor va en camino.`,
-                                    leida: false
+                                    mensaje: `✅ Tu solicitud fue aceptada por ${profile.nombre || 'un conductor'}.`
                                 });
-
-                            // Recargar ambas listas
                             loadAvailableRequests();
                             loadActiveServices();
-
-                        } catch (error) {
-                            alert('Error al aceptar: ' + error.message);
-                            btnElement.disabled = false;
-                            btnElement.textContent = '✅ Aceptar viaje';
+                        } else {
+                            alert('Error: ' + error.message);
+                            e.target.disabled = false;
+                            e.target.textContent = '✅ Aceptar';
                         }
                     });
                 });
             }
 
-            // Cargar servicios activos (aceptados por este conductor)
             async function loadActiveServices() {
-                const { data, error } = await supabase
+                const { data } = await supabase
                     .from('solicitudes')
-                    .select(`
-                        *,
-                        usuario:usuario_id (
-                            nombre,
-                            apellido,
-                            telefono
-                        )
-                    `)
+                    .select('*')
                     .eq('conductor_id', user.id)
                     .in('estado', ['aceptada', 'conductor_en_camino'])
                     .order('created_at', { ascending: false });
 
-                if (error) console.error(error);
-                else renderActiveServices(data);
-            }
-
-            function renderActiveServices(services) {
                 const container = document.getElementById('misServicios');
                 container.innerHTML = '';
-                
-                if (services.length === 0) {
-                    container.innerHTML = '<p style="text-align:center; color:#666;">No tienes servicios activos.</p>';
+                if (!data || data.length === 0) {
+                    container.innerHTML = '<p style="text-align:center; color:#666;">Sin servicios activos</p>';
                     return;
                 }
 
-                services.forEach(svc => {
-                    const usuario = svc.usuario || { nombre: 'Usuario', apellido: '', telefono: 'N/A' };
-                    const nombreCompleto = `${usuario.nombre || ''} ${usuario.apellido || ''}`.trim() || 'Usuario';
+                const userIds = data.map(s => s.usuario_id);
+                const usuariosMap = await getUsuarios(userIds);
 
+                data.forEach(s => {
+                    const u = usuariosMap[s.usuario_id] || { nombre: 'Usuario' };
                     const card = document.createElement('div');
                     card.className = 'solicitud-card';
-                    
                     let botones = '';
-                    if (svc.estado === 'aceptada') {
-                        botones = `
-                            <button class="btn btn-secondary iniciar" data-id="${svc.id}" style="width:100%; margin-top:10px;">
-                                🚦 Iniciar viaje
-                            </button>
-                        `;
-                    } else if (svc.estado === 'conductor_en_camino') {
-                        botones = `
-                            <button class="btn btn-secondary finalizar" data-id="${svc.id}" style="width:100%; margin-top:10px;">
-                                🏁 Finalizar viaje
-                            </button>
-                        `;
+                    if (s.estado === 'aceptada') {
+                        botones = `<button class="btn btn-secondary iniciar" data-id="${s.id}">🚦 Iniciar viaje</button>`;
+                    } else if (s.estado === 'conductor_en_camino') {
+                        botones = `<button class="btn btn-secondary finalizar" data-id="${s.id}">🏁 Finalizar</button>`;
                     }
-
                     card.innerHTML = `
-                        <div>
-                            <strong>👤 ${nombreCompleto}</strong>
-                            <br>
-                            <span style="color:#666;">📱 ${usuario.telefono || 'N/A'}</span>
-                        </div>
-                        <p><strong>📍 Origen:</strong> ${svc.origen}</p>
-                        <p><strong>🏁 Destino:</strong> ${svc.destino}</p>
-                        <p>
-                            <strong>Estado:</strong> 
-                            <span class="estado-badge estado-${svc.estado}">
-                                ${svc.estado === 'aceptada' ? 'Aceptado' : 
-                                  svc.estado === 'conductor_en_camino' ? 'En camino' : 
-                                  svc.estado}
-                            </span>
-                        </p>
+                        <div><strong>👤 ${u.nombre || ''} ${u.apellido || ''}</strong><br>📱 ${u.telefono || 'N/A'}</div>
+                        <p>📍 ${s.origen} → 🏁 ${s.destino}</p>
+                        <p>Estado: <span class="estado-badge estado-${s.estado}">${s.estado}</span></p>
                         ${botones}
                     `;
                     container.appendChild(card);
                 });
 
-                // Botones de iniciar
                 document.querySelectorAll('.iniciar').forEach(btn => {
                     btn.addEventListener('click', async (e) => {
                         const id = e.target.dataset.id;
@@ -287,53 +223,30 @@
                             .from('solicitudes')
                             .update({ estado: 'conductor_en_camino' })
                             .eq('id', id);
-                        
-                        // Notificar al usuario
-                        await supabase
-                            .from('notificaciones')
-                            .insert({
-                                user_id: services.find(s => s.id == id).usuario_id,
-                                mensaje: '🚦 El conductor está en camino hacia ti.'
-                            });
-                        
                         loadActiveServices();
                     });
                 });
 
-                // Botones de finalizar
                 document.querySelectorAll('.finalizar').forEach(btn => {
                     btn.addEventListener('click', async (e) => {
                         const id = e.target.dataset.id;
-                        const svc = services.find(s => s.id == id);
-                        
-                        // Actualizar solicitud
+                        const s = data.find(s => s.id == id);
                         await supabase
                             .from('solicitudes')
                             .update({ estado: 'finalizada', finished_at: new Date() })
                             .eq('id', id);
-                        
-                        // Crear registro en servicios
                         await supabase
                             .from('servicios')
                             .insert({
                                 solicitud_id: id,
-                                usuario_id: svc.usuario_id,
+                                usuario_id: s.usuario_id,
                                 conductor_id: user.id,
-                                tipo_servicio: svc.tipo_servicio,
-                                origen: svc.origen,
-                                destino: svc.destino,
-                                created_at: svc.created_at,
+                                tipo_servicio: s.tipo_servicio,
+                                origen: s.origen,
+                                destino: s.destino,
+                                created_at: s.created_at,
                                 finished_at: new Date()
                             });
-                        
-                        // Notificar al usuario
-                        await supabase
-                            .from('notificaciones')
-                            .insert({
-                                user_id: svc.usuario_id,
-                                mensaje: '✅ Tu viaje ha finalizado. ¡Gracias por viajar con TaxiMoto2026!'
-                            });
-                        
                         loadActiveServices();
                         loadAvailableRequests();
                     });
@@ -341,47 +254,32 @@
             }
 
             // Suscripciones en tiempo real
-            const subscription = supabase
+            supabase
                 .channel('solicitudes_conductor')
                 .on('postgres_changes', { 
                     event: 'INSERT', 
                     schema: 'public', 
                     table: 'solicitudes',
                     filter: profile.tipo === 'taxi' ? 'tipo_servicio=eq.taxi' : 'tipo_servicio=in.(mototaxi,delivery)'
-                }, payload => {
-                    // Nueva solicitud
-                    playNotificationSound();
+                }, () => {
+                    playSound();
                     loadAvailableRequests();
-                    
-                    // Mostrar notificación visual si el navegador lo permite
-                    if (Notification.permission === 'granted') {
-                        new Notification('Nueva solicitud', {
-                            body: `Tipo: ${payload.new.tipo_servicio}`,
-                            icon: '/images/icon.png'
-                        });
-                    }
                 })
                 .on('postgres_changes', {
                     event: 'UPDATE',
                     schema: 'public',
                     table: 'solicitudes',
                     filter: `conductor_id=eq.${user.id}`
-                }, payload => {
-                    // Actualización de servicios activos
-                    loadActiveServices();
-                })
+                }, () => loadActiveServices())
                 .subscribe();
 
-            // Solicitar permiso para notificaciones
-            if (Notification.permission !== 'granted' && Notification.permission !== 'denied') {
+            if (Notification.permission === 'default') {
                 Notification.requestPermission();
             }
 
-            // Cargar datos iniciales
-            loadAvailableRequests();
-            loadActiveServices();
+            await loadAvailableRequests();
+            await loadActiveServices();
 
-            // Logout
             document.getElementById('logoutBtnConductor').addEventListener('click', async () => {
                 await supabase.auth.signOut();
                 localStorage.removeItem('taximoto_email');

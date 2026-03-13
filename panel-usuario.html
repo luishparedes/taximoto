@@ -55,12 +55,11 @@
         </div>
 
         <h3>📋 Mis solicitudes activas</h3>
-        <div id="misSolicitudes"></div>
+        <div id="misSolicitudes">Cargando...</div>
 
         <h3>📜 Historial reciente</h3>
-        <div id="historial"></div>
+        <div id="historial">Cargando...</div>
         
-        <!-- Notificaciones -->
         <div id="notificaciones" style="position: fixed; top: 10px; right: 10px; z-index: 1000;"></div>
     </div>
 
@@ -96,7 +95,6 @@
                 });
             });
 
-            // Función para mostrar notificación flotante
             function showNotification(message, type = 'info') {
                 const notif = document.createElement('div');
                 notif.style.cssText = `
@@ -113,24 +111,38 @@
                 setTimeout(() => notif.remove(), 5000);
             }
 
-            // Cargar solicitudes activas
             async function loadSolicitudes() {
-                const { data, error } = await supabase
+                // Obtener solicitudes
+                const { data: solicitudes, error } = await supabase
                     .from('solicitudes')
-                    .select(`
-                        *,
-                        conductor:conductor_id (
-                            nombre,
-                            apellido,
-                            telefono
-                        )
-                    `)
+                    .select('*')
                     .eq('usuario_id', user.id)
                     .in('estado', ['enviada', 'aceptada', 'conductor_en_camino'])
                     .order('created_at', { ascending: false });
-                    
-                if (error) console.error(error);
-                else renderSolicitudes(data);
+
+                if (error) {
+                    console.error('Error:', error);
+                    document.getElementById('misSolicitudes').innerHTML = '<p style="color:red;">Error al cargar</p>';
+                    return;
+                }
+
+                // Obtener datos de conductores si existen
+                const conductorIds = solicitudes.filter(s => s.conductor_id).map(s => s.conductor_id);
+                let conductores = [];
+                if (conductorIds.length > 0) {
+                    const { data: condData } = await supabase
+                        .from('profiles')
+                        .select('id, nombre, apellido, telefono')
+                        .in('id', conductorIds);
+                    conductores = condData || [];
+                }
+
+                const solicitudesCompletas = solicitudes.map(s => ({
+                    ...s,
+                    conductor: conductores.find(c => c.id === s.conductor_id) || null
+                }));
+
+                renderSolicitudes(solicitudesCompletas);
             }
 
             function renderSolicitudes(solicitudes) {
@@ -163,7 +175,7 @@
                             if (s.conductor) {
                                 infoConductor = `
                                     <div class="conductor-info">
-                                        <strong>👤 Conductor:</strong> ${s.conductor.nombre} ${s.conductor.apellido}<br>
+                                        <strong>👤 Conductor:</strong> ${s.conductor.nombre || ''} ${s.conductor.apellido || ''}<br>
                                         <strong>📱 Teléfono:</strong> ${s.conductor.telefono || 'No disponible'}<br>
                                         <div style="display:flex; gap:10px; margin-top:10px;">
                                             <a href="tel:${s.conductor.telefono}" class="btn btn-primary" style="flex:1; padding:10px;">📞 Llamar</a>
@@ -179,7 +191,7 @@
                             if (s.conductor) {
                                 infoConductor = `
                                     <div class="conductor-info">
-                                        <strong>👤 Conductor:</strong> ${s.conductor.nombre} ${s.conductor.apellido}<br>
+                                        <strong>👤 Conductor:</strong> ${s.conductor.nombre || ''} ${s.conductor.apellido || ''}<br>
                                         <strong>📱 Teléfono:</strong> ${s.conductor.telefono || 'No disponible'}<br>
                                         <div style="display:flex; gap:10px; margin-top:10px;">
                                             <a href="tel:${s.conductor.telefono}" class="btn btn-primary" style="flex:1; padding:10px;">📞 Llamar</a>
@@ -206,29 +218,21 @@
                     container.appendChild(card);
                 });
 
-                // Event listeners para botones cancelar
                 document.querySelectorAll('.btn-cancelar').forEach(btn => {
                     btn.addEventListener('click', async (e) => {
-                        if (!confirm('¿Estás seguro de cancelar esta solicitud?')) return;
-                        
+                        if (!confirm('¿Cancelar solicitud?')) return;
                         const id = e.target.dataset.id;
-                        const { error } = await supabase
+                        await supabase
                             .from('solicitudes')
                             .update({ estado: 'cancelada' })
                             .eq('id', id)
                             .eq('usuario_id', user.id);
-                            
-                        if (error) {
-                            alert('Error al cancelar: ' + error.message);
-                        } else {
-                            showNotification('Solicitud cancelada', 'success');
-                            loadSolicitudes();
-                        }
+                        showNotification('Solicitud cancelada', 'success');
+                        loadSolicitudes();
                     });
                 });
             }
 
-            // Cargar historial (últimas 5 solicitudes finalizadas)
             async function loadHistorial() {
                 const { data, error } = await supabase
                     .from('servicios')
@@ -237,61 +241,48 @@
                     .order('finished_at', { ascending: false })
                     .limit(5);
 
-                if (error) console.error(error);
-                else {
-                    const container = document.getElementById('historial');
-                    container.innerHTML = '';
-                    
-                    if (data.length === 0) {
-                        container.innerHTML = '<p style="text-align:center; color:#666;">No hay viajes anteriores.</p>';
-                        return;
-                    }
-
-                    data.forEach(s => {
-                        const fecha = new Date(s.finished_at).toLocaleDateString();
-                        container.innerHTML += `
-                            <div class="solicitud-card" style="background:#f9f9f9;">
-                                <p><strong>${s.origen} → ${s.destino}</strong></p>
-                                <p>Tipo: ${s.tipo_servicio} | Fecha: ${fecha}</p>
-                            </div>
-                        `;
-                    });
+                if (error) {
+                    document.getElementById('historial').innerHTML = '<p style="color:red;">Error</p>';
+                    return;
                 }
+
+                const container = document.getElementById('historial');
+                container.innerHTML = '';
+                if (data.length === 0) {
+                    container.innerHTML = '<p style="text-align:center; color:#666;">Sin viajes anteriores</p>';
+                    return;
+                }
+
+                data.forEach(s => {
+                    container.innerHTML += `
+                        <div class="solicitud-card" style="background:#f9f9f9;">
+                            <p><strong>${s.origen} → ${s.destino}</strong></p>
+                            <p>Tipo: ${s.tipo_servicio} | ${new Date(s.finished_at).toLocaleDateString()}</p>
+                        </div>
+                    `;
+                });
             }
 
-            // Suscripción en tiempo real
-            const subscription = supabase
+            // Suscripciones en tiempo real
+            supabase
                 .channel('solicitudes_usuario')
                 .on('postgres_changes', { 
                     event: '*', 
                     schema: 'public', 
                     table: 'solicitudes', 
                     filter: `usuario_id=eq.${user.id}` 
-                }, payload => {
-                    if (payload.eventType === 'UPDATE') {
-                        if (payload.new.estado === 'aceptada') {
-                            showNotification('🎉 ¡Un conductor aceptó tu solicitud!', 'success');
-                        } else if (payload.new.estado === 'conductor_en_camino') {
-                            showNotification('🚦 El conductor está en camino', 'success');
-                        }
-                    }
-                    loadSolicitudes();
-                })
+                }, () => loadSolicitudes())
                 .on('postgres_changes', {
                     event: 'INSERT',
                     schema: 'public',
                     table: 'notificaciones',
                     filter: `user_id=eq.${user.id}`
-                }, payload => {
-                    showNotification(payload.new.mensaje, 'info');
-                })
+                }, payload => showNotification(payload.new.mensaje, 'info'))
                 .subscribe();
 
-            // Cargar datos iniciales
-            loadSolicitudes();
-            loadHistorial();
+            await loadSolicitudes();
+            await loadHistorial();
 
-            // Logout
             document.getElementById('logoutBtnPanel').addEventListener('click', async () => {
                 await supabase.auth.signOut();
                 localStorage.removeItem('taximoto_email');
