@@ -175,25 +175,30 @@
             }
 
             // Ver solicitudes (corregido el error de relación)
-            async function loadSolicitudes() {
-                const { data, error } = await supabase
-                    .from('solicitudes')
-                    .select(`
-                        *,
-                        usuario:usuario_id (
-                            email,
-                            nombre,
-                            apellido,
-                            telefono
-                        ),
-                        conductor:conductor_id (
-                            email,
-                            nombre,
-                            apellido,
-                            telefono
-                        )
-                    `)
-                    .order('created_at', { ascending: false });
+async function loadSolicitudes() {
+    const { data, error } = await supabase
+        .from('solicitudes')
+        .select(`
+            id,
+            tipo_servicio,
+            origen,
+            destino,
+            estado,
+            created_at,
+            usuario:usuario_id (
+                nombre,
+                apellido,
+                telefono,
+                email
+            ),
+            conductor:conductor_id (
+                nombre,
+                apellido,
+                telefono,
+                email
+            )
+        `)
+        .order('created_at', { ascending: false });
 
                 if (error) {
                     alert('Error al cargar solicitudes: ' + error.message);
