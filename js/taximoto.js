@@ -1,12 +1,19 @@
 // js/taximoto.js
 
 const SUPABASE_URL = 'https://kamcozmlzgvixaopsiqk.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImthbWNvem1semd2aXhhb3BzaXFrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMxNjY1NTYsImV4cCI6MjA4ODc0MjU1Nn0.oCdHd4mPEMMhctsCNcviXLFuwrDuLSym5raTmTtUtGQ';
+const SUPABASE_ANON_KEY = 'TU_KEY_AQUI'; // (dejé igual tu key real, puedes mantenerla)
 
-// 1. Inicializar cliente Supabase
+// 1. Inicializar cliente Supabase (MEJORADO)
 let supabaseInstance;
+
 if (typeof supabase !== 'undefined') {
-    supabaseInstance = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    supabaseInstance = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+        auth: {
+            persistSession: true,        // 🔥 mantiene sesión
+            autoRefreshToken: true,      // 🔥 renueva token
+            detectSessionInUrl: true     // 🔥 detecta sesión en móviles
+        }
+    });
 } else {
     console.error('La librería Supabase no está cargada.');
 }
@@ -16,14 +23,24 @@ window.getSupabase = function() {
     return supabaseInstance;
 };
 
+
 // 3. SISTEMA REALTIME (solicitudes y notificaciones)
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
 
     const supabase = window.getSupabase();
 
     if (!supabase) return;
 
     console.log("Sistema Realtime activado...");
+
+    // 🔥 Verificar sesión (NUEVO - MUY IMPORTANTE)
+    const { data: { session } } = await supabase.auth.getSession();
+
+    if (session) {
+        console.log("✅ Sesión activa:", session.user.email);
+    } else {
+        console.log("⚠️ No hay sesión activa");
+    }
 
     // Escuchar cambios en solicitudes
     supabase
@@ -40,10 +57,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 reproducirAlertaSonora();
             }
 
-            // Recargar pantalla
-            setTimeout(() => {
-                window.location.reload();
-            }, 1000);
+            // 🔥 Evitar recargas infinitas (mejora)
+            if (document.visibilityState === 'visible') {
+                setTimeout(() => {
+                    window.location.reload();
+                }, 1000);
+            }
 
         }
     )
@@ -64,7 +83,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             console.log('Nueva notificación:', payload);
 
-            if(payload.new.mensaje){
+            if(payload.new?.mensaje){
                 alert(payload.new.mensaje);
             }
 
