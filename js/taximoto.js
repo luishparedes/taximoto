@@ -1,7 +1,7 @@
 // js/taximoto.js
 
 const SUPABASE_URL = 'https://kamcozmlzgvixaopsiqk.supabase.co';
-const SUPABASE_ANON_KEY = 'TU_KEY_AQUI'; // (dejé igual tu key real, puedes mantenerla)
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImthbWNvem1semd2aXhhb3BzaXFrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMxNjY1NTYsImV4cCI6MjA4ODc0MjU1Nn0.oCdHd4mPEMMhctsCNcviXLFuwrDuLSym5raTmTtUtGQ'; // (dejé igual tu key real, puedes mantenerla)
 
 // 1. Inicializar cliente Supabase (MEJORADO)
 let supabaseInstance;
